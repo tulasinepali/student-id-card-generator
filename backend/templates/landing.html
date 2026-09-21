@@ -1,0 +1,1431 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardFlow ID &bull; Multi-Tenant Student ID Card & Printing System</title>
+    <!-- Favicon / Meta -->
+    <meta name="description" content="Next-generation multi-tenant student ID card management and high-precision printing platform for schools, colleges, and commercial printing studios.">
+
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-navy: #0f172a;
+            --accent-teal: #0d9488;
+            --accent-purple: #7c3aed;
+            --bg-light: #f8fafc;
+            --surface-card: #ffffff;
+            --border-subtle: #e2e8f0;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            color: var(--text-dark);
+            background-color: #ffffff;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        h1, h2, h3, h4, .font-heading {
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        /* Glassmorphic Top Navbar */
+        .landing-navbar {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        .nav-link {
+            font-weight: 600;
+            font-size: 0.93rem;
+            color: #334155 !important;
+            padding: 0.5rem 0.9rem !important;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .nav-link:hover {
+            color: var(--primary) !important;
+            background-color: rgba(37, 99, 235, 0.06);
+        }
+
+        /* Hero Background with Glowing Gradients */
+        .hero-section {
+            position: relative;
+            background: radial-gradient(100% 70% at 50% 0%, rgba(219, 234, 254, 0.5) 0%, rgba(248, 250, 252, 0.2) 60%, #ffffff 100%);
+            padding-top: 5.5rem;
+            padding-bottom: 5rem;
+            overflow: hidden;
+        }
+
+        .hero-glow-blob {
+            position: absolute;
+            width: 550px;
+            height: 550px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(13, 148, 136, 0.05) 60%, transparent 80%);
+            filter: blur(50px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Badges */
+        .badge-pill-soft {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+        }
+
+        /* Feature Cards */
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 2rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            height: 100%;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.08);
+            border-color: rgba(37, 99, 235, 0.3);
+        }
+
+        .feature-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Live Interactive ID Card Playground */
+        .card-customizer-panel {
+            background: #0f172a;
+            color: #f8fafc;
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+            border: 1px solid #1e293b;
+        }
+
+        .simulated-cr80-card {
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 54 / 85.6; /* CR80 Portrait standard */
+            border-radius: 16px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+            position: relative;
+            overflow: hidden;
+            color: #ffffff;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.35s ease;
+            margin: 0 auto;
+        }
+
+        .simulated-cr80-card.landscape-mode {
+            max-width: 480px;
+            aspect-ratio: 85.6 / 54; /* CR80 Landscape standard */
+            padding: 1.2rem 1.4rem;
+        }
+
+        /* Color Themes for Simulated Card */
+        .simulated-cr80-card.theme-navy {
+            background: linear-gradient(145deg, #1e3a8a 0%, #0f172a 100%);
+        }
+        .simulated-cr80-card.theme-emerald {
+            background: linear-gradient(145deg, #065f46 0%, #064e3b 100%);
+        }
+        .simulated-cr80-card.theme-crimson {
+            background: linear-gradient(145deg, #991b1b 0%, #450a0a 100%);
+        }
+        .simulated-cr80-card.theme-cyber {
+            background: linear-gradient(145deg, #18181b 0%, #09090b 100%);
+        }
+        .simulated-cr80-card.theme-amber {
+            background: linear-gradient(145deg, #854d0e 0%, #422006 100%);
+        }
+
+        .hologram-ribbon {
+            position: absolute;
+            top: -40%;
+            left: -30%;
+            width: 160%;
+            height: 180%;
+            background: linear-gradient(
+                115deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.12) 45%,
+                rgba(255, 255, 255, 0.02) 55%,
+                transparent 70%
+            );
+            pointer-events: none;
+            transform: rotate(25deg);
+        }
+
+        .color-dot-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .color-dot-btn:hover {
+            transform: scale(1.15);
+        }
+        .color-dot-btn.active {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        /* Dual Audience Section */
+        .audience-tab-btn {
+            padding: 0.9rem 1.6rem;
+            border-radius: 12px;
+            font-weight: 700;
+            border: 2px solid transparent;
+            background: #f1f5f9;
+            color: #475569;
+            transition: all 0.25s ease;
+        }
+        .audience-tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.4);
+        }
+
+        /* Pricing Cards */
+        .pricing-card {
+            background: #ffffff;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2.2rem 1.8rem;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .pricing-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.1);
+        }
+        .pricing-card.featured {
+            border-color: var(--primary);
+            box-shadow: 0 20px 35px -8px rgba(37, 99, 235, 0.2);
+        }
+        .pricing-ribbon {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.8rem;
+            border-radius: 9999px;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Phone Mockup Frame */
+        .phone-frame {
+            max-width: 320px;
+            margin: 0 auto;
+            border: 10px solid #1e293b;
+            border-radius: 42px;
+            background: #0f172a;
+            box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.4);
+            overflow: hidden;
+            position: relative;
+        }
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 130px;
+            height: 20px;
+            background: #1e293b;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+            z-index: 10;
+        }
+
+        /* Footer */
+        .landing-footer {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 4.5rem 0 2.5rem;
+            border-top: 1px solid #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Notification Messages -->
+    {% if messages %}
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 2050;">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'primary' }} alert-dismissible fade show shadow-lg border-0 d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-check-circle-fill text-success fs-5"></i>
+            <div>{{ message }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Signed-in Quick Banner -->
+    {% if request.user.is_authenticated %}
+    <div class="bg-primary text-white py-2 px-3 small d-flex justify-content-between align-items-center">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-person-check-fill me-1"></i>
+                Signed in as <strong>{{ request.user.username }}</strong>
+                {% if request.user.is_superuser %}(Platform Super Admin){% else %}({{ request.user.organization.name|default:"School Admin" }}){% endif %}
+            </span>
+            <div class="d-flex align-items-center gap-3">
+                {% if request.user.is_superuser %}
+                <a href="{% url 'platform_admin:dashboard' %}" class="btn btn-sm btn-light fw-bold text-primary py-0 px-2" style="font-size: 0.78rem;">
+                    Platform Console <i class="bi bi-arrow-right"></i>
+                </a>
+                {% endif %}
+                <a href="{% url 'dashboard' %}" class="btn btn-sm btn-light fw-bold text-primary py-0 px-2" style="font-size: 0.78rem;">
+                    Open Dashboard <i class="bi bi-box-arrow-in-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg sticky-top landing-navbar">
+        <div class="container">
+            <!-- Brand -->
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'landing_page' %}">
+                <div class="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
+                    <i class="bi bi-credit-card-2-front-fill fs-5"></i>
+                </div>
+                <div>
+                    <span class="fw-bolder fs-5 text-dark font-heading">CardFlow</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size: 0.65rem;">IDSYS</span>
+                </div>
+            </a>
+
+            <!-- Mobile Toggler -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Menu Links -->
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#solutions">Solutions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#interactive-designer">Live Designer</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#mobile-app">Mobile App</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#pricing">Pricing (NPR)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#faq">FAQ</a>
+                    </li>
+                </ul>
+
+                <!-- Action Buttons -->
+                <div class="d-flex align-items-center gap-2">
+                    {% if request.user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary fw-bold px-3 py-2 shadow-sm rounded-pill">
+                        <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                    </a>
+                    <a href="{% url 'admin_logout' %}" class="btn btn-outline-secondary fw-semibold px-3 py-2 rounded-pill">
+                        Sign Out
+                    </a>
+                    {% else %}
+                    <a href="{% url 'admin_login' %}" class="btn btn-light fw-bold px-3 py-2 text-dark border rounded-pill">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                    </a>
+                    <button type="button" class="btn btn-primary fw-bold px-4 py-2 shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#demoModal">
+                        Request Demo
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero-section text-center">
+        <div class="hero-glow-blob" style="top: -100px; left: 15%;"></div>
+        <div class="hero-glow-blob" style="top: 50px; right: 10%;"></div>
+
+        <div class="container position-relative" style="z-index: 2;">
+            <!-- Badge -->
+            <div class="mb-3">
+                <span class="badge-pill-soft">
+                    <i class="bi bi-stars"></i> Dual-Tenant Architecture: Single Schools & Commercial Printing Presses
+                </span>
+            </div>
+
+            <!-- Main Heading -->
+            <h1 class="display-4 fw-bolder mb-3 text-dark max-w-800 mx-auto" style="line-height: 1.15;">
+                High-Precision Student ID Cards.<br>
+                <span class="text-primary bg-gradient">From Mobile Capture to Press-Ready PDF.</span>
+            </h1>
+
+            <!-- Subtitle -->
+            <p class="lead text-muted mx-auto mb-4" style="max-width: 720px; font-size: 1.15rem;">
+                The complete multi-tenant ID card lifecycle. Teachers take verified classroom photos on mobile, administrators customize millimeter-accurate CR80 cards, and commercial studios batch-export print-ready sheets in minutes.
+            </p>
+
+            <!-- Hero CTAs -->
+            <div class="d-flex flex-wrap justify-content-center align-items-center gap-3 mb-5">
+                <a href="#interactive-designer" class="btn btn-primary btn-lg fw-bold px-4 py-3 rounded-pill shadow-sm">
+                    <i class="bi bi-palette2 me-2"></i> Try Interactive Card Designer
+                </a>
+                <a href="#pricing" class="btn btn-outline-dark btn-lg fw-bold px-4 py-3 rounded-pill">
+                    <i class="bi bi-tag-fill me-2"></i> View Pricing (NPR)
+                </a>
+                {% if sample_token %}
+                <a href="{% url 'public_qr_verify' token=sample_token %}" target="_blank" class="btn btn-light btn-lg fw-bold px-4 py-3 rounded-pill border text-primary">
+                    <i class="bi bi-qr-code-scan me-2"></i> Test Live Verification
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Key Feature Micro-Badges -->
+            <div class="row g-3 justify-content-center text-start" style="max-width: 900px; margin: 0 auto;">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-white rounded-4 border shadow-xs d-flex align-items-center gap-2">
+                        <i class="bi bi-rulers text-primary fs-4"></i>
+                        <div>
+                            <div class="fw-bold small text-dark">CR80 Sizing</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">85.6mm &times; 53.98mm</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-white rounded-4 border shadow-xs d-flex align-items-center gap-2">
+                        <i class="bi bi-phone text-success fs-4"></i>
+                        <div>
+                            <div class="fw-bold small text-dark">Mobile Companion</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Native Camera Capture</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-white rounded-4 border shadow-xs d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-check text-info fs-4"></i>
+                        <div>
+                            <div class="fw-bold small text-dark">Anti-Tamper QR</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Instant Public Verification</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 bg-white rounded-4 border shadow-xs d-flex align-items-center gap-2">
+                        <i class="bi bi-buildings text-warning fs-4"></i>
+                        <div>
+                            <div class="fw-bold small text-dark">Studio Multi-Client</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Unlimited Managed Schools</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Interactive Live ID Card Designer Playground -->
+    <section id="interactive-designer" class="py-5" style="background-color: #0b1329;">
+        <div class="container py-4">
+            <div class="text-center mb-5 text-white">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold small uppercase">
+                    Interactive Preview Playground
+                </span>
+                <h2 class="display-6 fw-bolder mt-2 text-white font-heading">
+                    Design Your Organization's Card in Real Time
+                </h2>
+                <p class="text-secondary mx-auto" style="max-width: 600px;">
+                    Experience how our high-precision template engine dynamically renders official cards. Type below to test live styling:
+                </p>
+            </div>
+
+            <div class="card-customizer-panel">
+                <div class="row g-4 align-items-center">
+                    <!-- Controls Left -->
+                    <div class="col-lg-6">
+                        <div class="pe-lg-4">
+                            <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                                <i class="bi bi-sliders text-primary"></i> Live Card Parameter Controls
+                            </h5>
+
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">Institution / School Name</label>
+                                <input type="text" id="inputSchoolName" class="form-control bg-dark text-white border-secondary" value="Everest International Academy">
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-8">
+                                    <label class="form-label small text-secondary fw-semibold">Student Full Name</label>
+                                    <input type="text" id="inputStudentName" class="form-control bg-dark text-white border-secondary" value="Aarav Sharma">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small text-secondary fw-semibold">Roll Number</label>
+                                    <input type="text" id="inputRollNo" class="form-control bg-dark text-white border-secondary" value="Roll #07">
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <label class="form-label small text-secondary fw-semibold">Class & Section</label>
+                                    <input type="text" id="inputClass" class="form-control bg-dark text-white border-secondary" value="Grade 10 - Section A">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small text-secondary fw-semibold">Student ID / Reg No</label>
+                                    <input type="text" id="inputIdNo" class="form-control bg-dark text-white border-secondary" value="STU-2026-042">
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-4">
+                                <div class="col-sm-6">
+                                    <label class="form-label small text-secondary fw-semibold">Blood Group</label>
+                                    <select id="inputBlood" class="form-select bg-dark text-white border-secondary">
+                                        <option value="B+">B Positive (B+)</option>
+                                        <option value="O+">O Positive (O+)</option>
+                                        <option value="A+">A Positive (A+)</option>
+                                        <option value="AB+">AB Positive (AB+)</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small text-secondary fw-semibold">Orientation</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" id="btnPortrait" class="btn btn-sm btn-primary active fw-semibold">Portrait</button>
+                                        <button type="button" id="btnLandscape" class="btn btn-sm btn-outline-secondary fw-semibold">Landscape</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Color Palette Selector -->
+                            <div class="mb-4">
+                                <label class="form-label small text-secondary fw-semibold d-block mb-2">Theme Color Palette</label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="color-dot-btn active" data-theme="theme-navy" style="background-color: #1e3a8a;" title="Royal Navy"></div>
+                                    <div class="color-dot-btn" data-theme="theme-emerald" style="background-color: #059669;" title="Emerald Forest"></div>
+                                    <div class="color-dot-btn" data-theme="theme-crimson" style="background-color: #dc2626;" title="Crimson Ruby"></div>
+                                    <div class="color-dot-btn" data-theme="theme-cyber" style="background-color: #18181b;" title="Cyber Dark"></div>
+                                    <div class="color-dot-btn" data-theme="theme-amber" style="background-color: #d97706;" title="Golden Amber"></div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2 text-secondary small">
+                                <i class="bi bi-info-circle-fill text-primary"></i>
+                                <span>Output renders at true 300 DPI vector PDF with crop marks ready for thermal & PVC dye-sublimation printers.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulated Live ID Card Preview Right -->
+                    <div class="col-lg-6 text-center">
+                        <div class="p-3 bg-black bg-opacity-40 rounded-4 border border-secondary border-opacity-25 d-inline-block w-100">
+                            <div id="simulatedCard" class="simulated-cr80-card theme-navy">
+                                <div class="hologram-ribbon"></div>
+
+                                <!-- Card Header -->
+                                <div class="d-flex align-items-center gap-2 border-bottom border-white border-opacity-20 pb-2 text-start">
+                                    <div class="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                        <i class="bi bi-mortarboard-fill text-primary"></i>
+                                    </div>
+                                    <div class="overflow-hidden">
+                                        <div id="cardSchool" class="fw-bold small text-truncate" style="letter-spacing: 0.02em;">Everest International Academy</div>
+                                        <div class="text-white-50" style="font-size: 0.65rem; text-transform: uppercase;">Official Student Identity Card</div>
+                                    </div>
+                                </div>
+
+                                <!-- Card Body / Photo / Info -->
+                                <div class="my-auto py-2 text-center">
+                                    <div class="position-relative d-inline-block mb-2">
+                                        <div class="rounded-3 bg-light border border-white border-2 overflow-hidden shadow-sm d-flex align-items-center justify-content-center mx-auto" style="width: 82px; height: 100px;">
+                                            <i class="bi bi-person-fill text-secondary" style="font-size: 3.5rem;"></i>
+                                        </div>
+                                        <span class="position-absolute bottom-0 end-0 badge bg-success border border-white rounded-pill px-1" style="font-size: 0.6rem;">
+                                            <i class="bi bi-check-lg"></i>
+                                        </span>
+                                    </div>
+
+                                    <h5 id="cardName" class="fw-bold mb-0 text-white font-heading" style="font-size: 1.15rem;">Aarav Sharma</h5>
+                                    <div id="cardClass" class="text-warning fw-semibold small">Grade 10 - Section A</div>
+                                    <div id="cardId" class="text-white-50 font-monospace" style="font-size: 0.72rem;">STU-2026-042</div>
+                                </div>
+
+                                <!-- Details Matrix -->
+                                <div class="bg-black bg-opacity-30 rounded-3 p-2 text-start small mb-2" style="font-size: 0.7rem;">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-white-50">Roll No:</span>
+                                        <strong id="cardRoll" class="text-white">Roll #07</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-white-50">Blood Group:</span>
+                                        <strong id="cardBlood" class="text-danger fw-bold">B+</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-white-50">Valid Through:</span>
+                                        <strong class="text-white">2026 - 2027</strong>
+                                    </div>
+                                </div>
+
+                                <!-- Card Footer: QR & Signature -->
+                                <div class="d-flex align-items-center justify-content-between pt-1 border-top border-white border-opacity-20 text-start">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="p-1 bg-white rounded-2">
+                                            <i class="bi bi-qr-code text-dark fs-5"></i>
+                                        </div>
+                                        <div style="font-size: 0.6rem;" class="text-white-50">
+                                            <span>Scan with any</span><br>
+                                            <strong class="text-white">Smartphone</strong>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fst-italic text-white-50 font-serif" style="font-family: cursive; font-size: 0.78rem;">Principal Signature</div>
+                                        <div style="font-size: 0.58rem;" class="text-white-50">Authorized Signatory</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dual Solutions Section (Schools vs Studios) -->
+    <section id="solutions" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold small uppercase">
+                    Tailored Workflows
+                </span>
+                <h2 class="display-6 fw-bolder mt-2 font-heading">
+                    Engineered for Two Distinct Worlds
+                </h2>
+                <p class="text-muted mx-auto" style="max-width: 650px;">
+                    Whether you are an individual educational institution or a commercial photo press managing 50 schools, CardFlow adapts to your exact business model.
+                </p>
+
+                <!-- Persona Switcher Tabs -->
+                <div class="d-inline-flex p-1 bg-white border rounded-4 shadow-xs mt-3">
+                    <button id="tabSchoolBtn" class="audience-tab-btn active me-1" type="button">
+                        <i class="bi bi-mortarboard-fill me-2"></i> For Schools & Colleges
+                    </button>
+                    <button id="tabStudioBtn" class="audience-tab-btn" type="button">
+                        <i class="bi bi-printer-fill me-2"></i> For Studios & Printing Presses
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content for Schools -->
+            <div id="schoolContent">
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="pe-lg-4">
+                            <span class="badge bg-primary-subtle text-primary fw-bold mb-2">Single Organization Archetype</span>
+                            <h3 class="fw-bold mb-3 font-heading">Streamlined Institutional Identity & Zero Photo Headaches</h3>
+                            <p class="text-muted mb-4">
+                                Eliminates the chaotic yearly scramble of collecting passport photos in envelopes, re-typing student details into Word templates, and correcting misprinted roll numbers.
+                            </p>
+
+                            <div class="vstack gap-3 mb-4">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-primary-subtle text-primary rounded-3 mt-1">
+                                        <i class="bi bi-camera-fill"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Classroom Photo Capture by Teachers</h6>
+                                        <p class="text-muted small mb-0">Class teachers use our Flutter companion mobile app to snap and submit clean student photos right from their smartphones during roll call.</p>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-success-subtle text-success rounded-3 mt-1">
+                                        <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">1-Click Excel Roster Import</h6>
+                                        <p class="text-muted small mb-0">Upload your entire school roster in seconds with intelligent class and section matching, duplicate detection, and automated validation.</p>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-info-subtle text-info rounded-3 mt-1">
+                                        <i class="bi bi-qr-code-scan"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Anti-Fraud QR Code on Every Card</h6>
+                                        <p class="text-muted small mb-0">Bus operators, library staff, or exam invigilators can scan the QR code with any phone to immediately verify the student's authentic dossier.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a href="#pricing" class="btn btn-primary fw-bold px-4 py-2 rounded-pill">
+                                Explore School Plans <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="p-4 bg-white rounded-4 border shadow-sm">
+                            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+                                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-mortarboard-fill text-primary me-2"></i> Shree Dhukurpani Secondary School</h6>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Active School</span>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded-3 text-center">
+                                        <div class="fw-bold fs-5 text-primary">840</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Students</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded-3 text-center">
+                                        <div class="fw-bold fs-5 text-success">100%</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Verified</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="p-2 bg-light rounded-3 text-center">
+                                        <div class="fw-bold fs-5 text-dark">840</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Cards Issued</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-primary-subtle text-primary rounded-3 small">
+                                <i class="bi bi-check-circle-fill me-1"></i> <strong>Clean Teacher Isolation:</strong> Teachers assigned to Grade 1 only see and photograph their own class. School data never mixes with outside organizations.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content for Studios -->
+            <div id="studioContent" style="display: none;">
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="pe-lg-4">
+                            <span class="badge bg-warning-subtle text-dark fw-bold mb-2">Commercial Studio / Press Archetype</span>
+                            <h3 class="fw-bold mb-3 font-heading">Manage 100+ Client Schools from a Single Command Center</h3>
+                            <p class="text-muted mb-4">
+                                Built specifically for printing presses and commercial photo studios. Manage multiple school contracts, isolate their branding, and mass-generate cards on industrial sheets.
+                            </p>
+
+                            <div class="vstack gap-3 mb-4">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-warning-subtle text-dark rounded-3 mt-1">
+                                        <i class="bi bi-buildings-fill"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Dedicated Client Organizations Hub</h6>
+                                        <p class="text-muted small mb-0">Register client schools with unique logos, principal signatures, and official contact details. Switch between client workspaces in 1 click.</p>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-primary-subtle text-primary rounded-3 mt-1">
+                                        <i class="bi bi-layers-fill"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Dynamic Branding Resolution on Every Card</h6>
+                                        <p class="text-muted small mb-0">Whether generating a single card or 5,000 cards across 10 client schools, the PDF engine injects each school's exact emblem, signature, and name automatically.</p>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="p-2 bg-success-subtle text-success rounded-3 mt-1">
+                                        <i class="bi bi-printer-fill"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">High-Speed Multi-Card Batch PDF Export</h6>
+                                        <p class="text-muted small mb-0">Export 8-up or 10-up standard PVC imposition layouts with vector precision, alignment guides, and cutting crop marks.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a href="#pricing" class="btn btn-dark fw-bold px-4 py-2 rounded-pill">
+                                Explore Commercial Studio Plans <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="p-4 bg-white rounded-4 border shadow-sm">
+                            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+                                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-printer-fill text-warning me-2"></i> Everest Photo Studio & Color Press</h6>
+                                <span class="badge bg-warning-subtle text-dark border border-warning">Studio Pro Plan</span>
+                            </div>
+                            <div class="list-group list-group-flush mb-3 small">
+                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Shree Dhukurpani Secondary School</strong>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Client Code: CLT-00001 &bull; 840 Students</div>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">Ready to Print</span>
+                                </div>
+                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Apex Model Academy</strong>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Client Code: CLT-00002 &bull; 520 Students</div>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">Verification in Progress</span>
+                                </div>
+                                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Mount View International High School</strong>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Client Code: CLT-00003 &bull; 1,120 Students</div>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">Batch Complete</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-light rounded-3 small text-muted">
+                                <i class="bi bi-shield-lock-fill text-success me-1"></i> Strict database scoping guarantees no client school's student roster or teacher account ever leaks to another.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core 6 Pillars Features Section -->
+    <section id="features" class="py-5">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold small uppercase">
+                    Platform Architecture
+                </span>
+                <h2 class="display-6 fw-bolder mt-2 font-heading">
+                    Six Pillars of Complete Identity Management
+                </h2>
+                <p class="text-muted mx-auto" style="max-width: 600px;">
+                    Built from the ground up for zero errors, high security, and high production speed.
+                </p>
+            </div>
+
+            <div class="row g-4">
+                <!-- Feature 1 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-primary-subtle text-primary">
+                            <i class="bi bi-bezier2"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Visual Drag-and-Drop Designer</h5>
+                        <p class="text-muted small mb-0">
+                            Build templates directly in your browser. Configure photos, dynamic text tags, barcodes, QR codes, watermarks, and emblems with millimeter-accurate guides.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-success-subtle text-success">
+                            <i class="bi bi-camera"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Flutter Teacher Mobile App</h5>
+                        <p class="text-muted small mb-0">
+                            Equip teachers with a native Android & iOS mobile app to capture verified student portraits directly with their phone cameras, eliminating studio queues.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-info-subtle text-info">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Anti-Tamper Public QR Verification</h5>
+                        <p class="text-muted small mb-0">
+                            Every card carries a unique cryptographic QR token. Anyone scanning it with an ordinary smartphone camera opens an instant, official verification page.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-warning-subtle text-warning">
+                            <i class="bi bi-filetype-xlsx"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Excel Import & Validation Engine</h5>
+                        <p class="text-muted small mb-0">
+                            Upload school-wide spreadsheets in seconds. Automatic class-section mapping, roll-number collision checks, and clean error reporting prevent data corruption.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-danger-subtle text-danger">
+                            <i class="bi bi-printer"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Commercial Batch Print Engine</h5>
+                        <p class="text-muted small mb-0">
+                            One-click batch PDF generation with industry-standard 8-up or 10-up card layouts, vector typography, and precise cutting crop marks for dye-sublimation PVC presses.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-wrapper bg-purple-subtle text-primary" style="background-color: #ede9fe; color: #7c3aed;">
+                            <i class="bi bi-key-fill"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2 font-heading">Multi-Tenant Data Isolation</h5>
+                        <p class="text-muted small mb-0">
+                            Military-grade role segregation guarantees that students, teachers, and client organizations are strictly isolated. No cross-tenant data bleed ever.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mobile App Showcase Section -->
+    <section id="mobile-app" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="row g-5 align-items-center">
+                <div class="col-lg-6">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill fw-bold small uppercase mb-2">
+                        Mobile Companion App
+                    </span>
+                    <h2 class="display-6 fw-bolder font-heading mb-3">
+                        Put Student Photo Capture Directly in the Teacher's Hands
+                    </h2>
+                    <p class="text-muted mb-4">
+                        Say goodbye to lost digital camera SD cards, chaotic USB sticks, and mismatched student names. Our Flutter companion app connects teachers directly to their assigned classroom roster.
+                    </p>
+
+                    <div class="vstack gap-3 mb-4">
+                        <div class="d-flex gap-3">
+                            <div class="text-success fs-4"><i class="bi bi-check-circle-fill"></i></div>
+                            <div>
+                                <h6 class="fw-bold mb-1">Instant Camera Snapping & Auto-Crop</h6>
+                                <p class="text-muted small mb-0">Teachers tap a student's name, take a portrait photo, and upload it directly to the verification queue in 3 seconds.</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <div class="text-success fs-4"><i class="bi bi-check-circle-fill"></i></div>
+                            <div>
+                                <h6 class="fw-bold mb-1">Real-Time Verification Queue</h6>
+                                <p class="text-muted small mb-0">School administrators review submitted photos in the web portal before cards enter the print queue, preventing blurry prints.</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <div class="text-success fs-4"><i class="bi bi-check-circle-fill"></i></div>
+                            <div>
+                                <h6 class="fw-bold mb-1">Optional Bypass Mode</h6>
+                                <p class="text-muted small mb-0">Organizations that do not use mobile devices can disable the app toggle with 1 click. Enrolled students are then automatically verified for printing.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 text-center">
+                    <div class="phone-frame p-3 text-white">
+                        <div class="phone-notch"></div>
+                        <div class="pt-4 pb-2 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold text-truncate" style="max-width: 170px;">Grade 10 - Sec A</span>
+                            <span class="badge bg-success small">Online</span>
+                        </div>
+                        <div class="py-3 text-start">
+                            <div class="small text-muted mb-2">STUDENT PHOTO QUEUE</div>
+
+                            <div class="p-2 mb-2 bg-dark rounded-3 border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small">Aarav Sharma</div>
+                                        <div class="text-muted" style="font-size: 0.68rem;">Roll #07 &bull; Photo Ready</div>
+                                    </div>
+                                </div>
+                                <span class="badge bg-success-subtle text-success" style="font-size: 0.65rem;">Verified</span>
+                            </div>
+
+                            <div class="p-2 mb-2 bg-dark rounded-3 border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small">Bishnu Darji</div>
+                                        <div class="text-muted" style="font-size: 0.68rem;">Roll #08 &bull; Needs Photo</div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-xs btn-primary py-0 px-2 fw-bold" style="font-size: 0.7rem;"><i class="bi bi-camera"></i> Snap</button>
+                            </div>
+
+                            <div class="p-2 mb-2 bg-dark rounded-3 border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small">Tulasi Nepali</div>
+                                        <div class="text-muted" style="font-size: 0.68rem;">Roll #09 &bull; Needs Photo</div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-xs btn-primary py-0 px-2 fw-bold" style="font-size: 0.7rem;"><i class="bi bi-camera"></i> Snap</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section (in NPR) -->
+    <section id="pricing" class="py-5">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold small uppercase">
+                    Transparent SaaS Pricing
+                </span>
+                <h2 class="display-6 fw-bolder mt-2 font-heading">
+                    Simple, Predictable Plans in Nepalese Rupee (NPR)
+                </h2>
+                <p class="text-muted mx-auto" style="max-width: 600px;">
+                    No surprise fees or hidden licensing costs. Choose the tier that matches your institutional scale.
+                </p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                {% for plan in plans %}
+                <div class="col-md-6 col-lg-3">
+                    <div class="pricing-card {% if forloop.counter == 2 %}featured{% endif %}">
+                        {% if forloop.counter == 2 %}
+                        <div class="pricing-ribbon">Most Popular</div>
+                        {% endif %}
+
+                        <h5 class="fw-bold text-dark font-heading mb-1">{{ plan.name }}</h5>
+                        <p class="text-muted small mb-3" style="min-height: 40px;">{{ plan.description|default:"Complete institutional package." }}</p>
+
+                        <!-- Price in NPR -->
+                        <div class="mb-4">
+                            <span class="fs-2 fw-bolder text-primary font-heading">NPR {{ plan.price_per_year }}</span>
+                            <span class="text-muted small">/ year</span>
+                        </div>
+
+                        <!-- Limits -->
+                        <div class="border-top border-bottom py-3 mb-4 small">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Student Limit:</span>
+                                <strong class="text-dark">{{ plan.max_students }} Students</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Staff / Teachers:</span>
+                                <strong class="text-dark">{{ plan.max_staff }} Accounts</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Managed Clients:</span>
+                                <strong class="text-dark">
+                                    {% if plan.max_clients > 1 %}
+                                    <span class="badge bg-primary-subtle text-primary">{{ plan.max_clients }} Schools</span>
+                                    {% else %}
+                                    Single Institution
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+
+                        <!-- Feature Highlights -->
+                        <ul class="list-unstyled small vstack gap-2 mb-4 text-muted">
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i> Millimeter CR80 Designer</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i> Anti-Tamper QR Verification</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i> Teacher Mobile Companion App</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i> Class-wise Excel Import</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i> 8-Up / 10-Up Batch Card Export</li>
+                        </ul>
+
+                        <div class="mt-auto">
+                            <button type="button" class="btn {% if forloop.counter == 2 %}btn-primary shadow-sm{% else %}btn-outline-dark{% endif %} w-100 fw-bold rounded-pill py-2" data-bs-toggle="modal" data-bs-target="#demoModal" onclick="selectPlan('{{ plan.code }}', '{{ plan.name }}')">
+                                Select {{ plan.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-4 text-muted">
+                    <p>No active subscription plans found. Contact administrator to view pricing.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section id="faq" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold small uppercase">
+                    Got Questions?
+                </span>
+                <h2 class="display-6 fw-bolder mt-2 font-heading">Frequently Asked Questions</h2>
+            </div>
+
+            <div class="accordion accordion-flush mx-auto shadow-xs rounded-4 overflow-hidden border" id="faqAccordion" style="max-width: 800px;">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            Are generated ID cards compliant with standard PVC thermal printers?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted small">
+                            Yes! Our PDF export strictly follows the ISO/IEC 7810 ID-1 standard for CR80 cards (85.60 mm &times; 53.98 mm). You can generate print sheets with cutting crop marks or export single high-resolution vector cards compatible with thermal card printers (Zebra, Fargo, Evolis) or flatbed inkjet PVC printers.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            Can a Commercial Photo Studio manage multiple client schools independently?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted small">
+                            Absolutely. With our Commercial Studio archetype, you have a dedicated "Studio Clients Hub". You can register client schools, upload their respective logos and principal signatures, switch between client workspaces with 1 click, and batch print cards without data ever mixing.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            What if our school doesn't want to use the Teacher Mobile App?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted small">
+                            You can simply turn off the "Uses Mobile App" toggle in your organization profile. When disabled, student verification requirements are automatically bypassed, and students enrolled via the web portal or Excel import become immediately eligible for ID card printing as soon as a photo is attached.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                            Is currency billing strictly in Nepalese Rupee (NPR)?
+                        </button>
+                    </h2>
+                    <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted small">
+                            Yes. All plans are denominated in NPR with local banking, eSewa/Khalti digital wallet transfer compatibility, and direct institutional invoicing.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action Banner -->
+    <section class="py-5" style="background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);">
+        <div class="container py-4 text-center text-white">
+            <h2 class="display-6 fw-bolder font-heading mb-3">
+                Modernize Your Institution's ID Card Operations Today
+            </h2>
+            <p class="lead text-white-50 mx-auto mb-4" style="max-width: 650px;">
+                Join modern educational institutions and commercial printing studios cutting card generation turnaround from 3 weeks to 2 hours.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <button type="button" class="btn btn-primary btn-lg fw-bold px-4 py-3 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#demoModal">
+                    <i class="bi bi-send-fill me-2"></i> Request a Personalized Demo
+                </button>
+                <a href="{% url 'admin_login' %}" class="btn btn-outline-light btn-lg fw-bold px-4 py-3 rounded-pill">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Sign In to Portal
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+        <div class="container">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-5">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 34px; height: 34px;">
+                            <i class="bi bi-credit-card-2-front-fill fs-5"></i>
+                        </div>
+                        <span class="fw-bolder fs-5 text-white font-heading">CardFlow IDSYS</span>
+                    </div>
+                    <p class="small text-secondary" style="max-width: 360px;">
+                        Enterprise Multi-Tenant Identity Card Management and Printing Platform. Supporting single educational institutions, colleges, and commercial printing presses across Nepal.
+                    </p>
+                </div>
+
+                <div class="col-6 col-lg-2">
+                    <h6 class="fw-bold text-white small text-uppercase mb-3">Product</h6>
+                    <ul class="list-unstyled small vstack gap-2">
+                        <li><a href="#features" class="text-secondary text-decoration-none">Features</a></li>
+                        <li><a href="#solutions" class="text-secondary text-decoration-none">Solutions</a></li>
+                        <li><a href="#interactive-designer" class="text-secondary text-decoration-none">Live Designer</a></li>
+                        <li><a href="#pricing" class="text-secondary text-decoration-none">Pricing (NPR)</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-lg-2">
+                    <h6 class="fw-bold text-white small text-uppercase mb-3">Portals</h6>
+                    <ul class="list-unstyled small vstack gap-2">
+                        <li><a href="{% url 'admin_login' %}" class="text-secondary text-decoration-none">Organization Login</a></li>
+                        <li><a href="{% url 'platform_admin:login' %}" class="text-secondary text-decoration-none">Platform Admin</a></li>
+                        <li><a href="#demoModal" data-bs-toggle="modal" class="text-secondary text-decoration-none">Request Demo</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-3">
+                    <h6 class="fw-bold text-white small text-uppercase mb-3">Security & Compliance</h6>
+                    <p class="small text-secondary mb-2">
+                        Strict role-based tenant isolation. Cryptographically signed public QR verification tokens.
+                    </p>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary small">
+                        <i class="bi bi-shield-check text-success me-1"></i> ISO/IEC 7810 CR80 Standard
+                    </span>
+                </div>
+            </div>
+
+            <div class="pt-4 border-top border-secondary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center small text-secondary">
+                <div>&copy; 2026 CardFlow Identity Management System. All rights reserved.</div>
+                <div>Designed for high-speed institutional ID card printing in Nepal.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Demo Request Modal -->
+    <div class="modal fade" id="demoModal" tabindex="-1" aria-labelledby="demoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold" id="demoModalLabel">
+                        <i class="bi bi-send-fill me-2"></i> Request a System Demo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{% url 'landing_page' %}">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <p class="text-muted small mb-3">
+                            Fill out the brief details below and our team will get in touch to set up your organization or commercial press account.
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Your Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Ramesh Karki" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Organization or Studio Name</label>
+                            <input type="text" name="org_name" class="form-control" placeholder="e.g. Mount View Secondary School or Everest Studio">
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-semibold">Email Address</label>
+                                <input type="email" name="email" class="form-control" placeholder="name@domain.com">
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-semibold">Phone Number <span class="text-danger">*</span></label>
+                                <input type="tel" name="phone" class="form-control" placeholder="98XXXXXXXX" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Organization Type</label>
+                            <select name="org_type" class="form-select">
+                                <option value="SCHOOL">Educational Institution (School / College)</option>
+                                <option value="STUDIO_PRESS">Commercial Photo Studio / Printing Press</option>
+                                <option value="CORPORATE_AGENCY">Corporate / Agency</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Interested Subscription Plan</label>
+                            <select name="plan_code" id="modalPlanSelect" class="form-select">
+                                <option value="">-- Select a Plan Tier --</option>
+                                {% for plan in plans %}
+                                <option value="{{ plan.code }}">{{ plan.name }} (NPR {{ plan.price_per_year }}/yr)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Estimated Student Count / Notes</label>
+                            <textarea name="message" class="form-control" rows="2" placeholder="e.g. 1,200 students across Grades 1-12"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0 py-3">
+                        <button type="button" class="btn btn-outline-secondary fw-semibold rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4">Submit Demo Request</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Interactive Live Card Designer Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inputs
+            const inputSchool = document.getElementById('inputSchoolName');
+            const inputStudent = document.getElementById('inputStudentName');
+            const inputRoll = document.getElementById('inputRollNo');
+            const inputClass = document.getElementById('inputClass');
+            const inputId = document.getElementById('inputIdNo');
+            const inputBlood = document.getElementById('inputBlood');
+
+            // Card Output Elements
+            const cardSchool = document.getElementById('cardSchool');
+            const cardName = document.getElementById('cardName');
+            const cardRoll = document.getElementById('cardRoll');
+            const cardClass = document.getElementById('cardClass');
+            const cardId = document.getElementById('cardId');
+            const cardBlood = document.getElementById('cardBlood');
+            const simulatedCard = document.getElementById('simulatedCard');
+
+            // Live Update Listeners
+            if (inputSchool) {
+                inputSchool.addEventListener('input', () => cardSchool.innerText = inputSchool.value || 'School Name');
+            }
+            if (inputStudent) {
+                inputStudent.addEventListener('input', () => cardName.innerText = inputStudent.value || 'Student Name');
+            }
+            if (inputRoll) {
+                inputRoll.addEventListener('input', () => cardRoll.innerText = inputRoll.value || 'Roll #01');
+            }
+            if (inputClass) {
+                inputClass.addEventListener('input', () => cardClass.innerText = inputClass.value || 'Grade 1');
+            }
+            if (inputId) {
+                inputId.addEventListener('input', () => cardId.innerText = inputId.value || 'ID-001');
+            }
+            if (inputBlood) {
+                inputBlood.addEventListener('change', () => cardBlood.innerText = inputBlood.value);
+            }
+
+            // Theme Color Picker
+            const colorButtons = document.querySelectorAll('.color-dot-btn');
+            colorButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    colorButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    const themeClass = this.getAttribute('data-theme');
+                    simulatedCard.className = 'simulated-cr80-card ' + themeClass + (simulatedCard.classList.contains('landscape-mode') ? ' landscape-mode' : '');
+                });
+            });
+
+            // Orientation Toggle
+            const btnPortrait = document.getElementById('btnPortrait');
+            const btnLandscape = document.getElementById('btnLandscape');
+
+            if (btnPortrait && btnLandscape) {
+                btnPortrait.addEventListener('click', function() {
+                    btnPortrait.classList.add('btn-primary', 'active');
+                    btnPortrait.classList.remove('btn-outline-secondary');
+                    btnLandscape.classList.remove('btn-primary', 'active');
+                    btnLandscape.classList.add('btn-outline-secondary');
+                    simulatedCard.classList.remove('landscape-mode');
+                });
+
+                btnLandscape.addEventListener('click', function() {
+                    btnLandscape.classList.add('btn-primary', 'active');
+                    btnLandscape.classList.remove('btn-outline-secondary');
+                    btnPortrait.classList.remove('btn-primary', 'active');
+                    btnPortrait.classList.add('btn-outline-secondary');
+                    simulatedCard.classList.add('landscape-mode');
+                });
+            }
+
+            // Audience Tabs Toggle (Schools vs Studios)
+            const tabSchoolBtn = document.getElementById('tabSchoolBtn');
+            const tabStudioBtn = document.getElementById('tabStudioBtn');
+            const schoolContent = document.getElementById('schoolContent');
+            const studioContent = document.getElementById('studioContent');
+
+            if (tabSchoolBtn && tabStudioBtn) {
+                tabSchoolBtn.addEventListener('click', function() {
+                    tabSchoolBtn.classList.add('active');
+                    tabStudioBtn.classList.remove('active');
+                    schoolContent.style.display = 'block';
+                    studioContent.style.display = 'none';
+                });
+
+                tabStudioBtn.addEventListener('click', function() {
+                    tabStudioBtn.classList.add('active');
+                    tabSchoolBtn.classList.remove('active');
+                    studioContent.style.display = 'block';
+                    schoolContent.style.display = 'none';
+                });
+            }
+        });
+
+        // Pre-select plan in modal
+        function selectPlan(code, name) {
+            const select = document.getElementById('modalPlanSelect');
+            if (select && code) {
+                select.value = code;
+            }
+        }
+    </script>
+</body>
+</html>

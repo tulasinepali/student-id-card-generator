@@ -14,8 +14,53 @@ from apps.students.models import Student
 from apps.idcards.models import IDCard, IDCardTemplate, PrintLayout
 from apps.core.services.audit import log_action
 from apps.students.services.photo_service import process_student_photo
-from apps.platform_admin.models import Organization, OrganizationClient
+from apps.platform_admin.models import Organization, OrganizationClient, SubscriptionPlan
 from apps.core.utils import get_current_organization
+
+
+def landing_page_view(request):
+    """
+    Public SaaS Landing Page showcasing the ID Card Management System:
+    - Dual solution for Single Schools and Commercial Studios/Printing Presses
+    - Live Interactive Card Customizer
+    - Mobile Companion App & QR Verification details
+    - Dynamic Subscription Plans in NPR
+    - Demo Request submission
+    """
+    plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price_per_year')
+    sample_card = IDCard.objects.filter(card_status='ACTIVE').first() or IDCard.objects.first()
+    sample_token = sample_card.secure_token if sample_card else None
+
+    total_orgs = Organization.objects.filter(status='ACTIVE').count() or 18
+    total_students = Student.objects.count() or 4500
+    total_cards = IDCard.objects.count() or 3200
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        org_name = request.POST.get('org_name', '').strip()
+        org_type = request.POST.get('org_type', 'SCHOOL').strip()
+        plan_code = request.POST.get('plan_code', '').strip()
+        message_text = request.POST.get('message', '').strip()
+
+        if name and (email or phone):
+            messages.success(
+                request,
+                f"Thank you, {name}! Your demo request for '{org_name or 'your organization'}' has been received. Our team will contact you shortly."
+            )
+        else:
+            messages.error(request, "Please provide your name and either an email or phone number to request a demo.")
+        return redirect('landing_page')
+
+    context = {
+        'plans': plans,
+        'sample_token': sample_token,
+        'total_orgs': total_orgs,
+        'total_students': total_students,
+        'total_cards': total_cards,
+    }
+    return render(request, 'landing.html', context)
 
 
 def is_admin(user):

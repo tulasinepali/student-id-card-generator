@@ -5,7 +5,8 @@ from django.conf.urls.static import static
 
 from apps.core.views import (
     dashboard_view, school_settings_view, audit_logs_view, public_qr_verify_view,
-    client_management_view, client_create_view, client_edit_view, client_delete_view, switch_client_view
+    client_management_view, client_create_view, client_edit_view, client_delete_view, switch_client_view,
+    landing_page_view
 )
 from apps.accounts.views import admin_login_view, admin_logout_view, teachers_list_view
 from apps.academic.views import academic_years_view, classes_sections_view
@@ -28,8 +29,12 @@ urlpatterns = [
     path('login/', admin_login_view, name='admin_login'),
     path('logout/', admin_logout_view, name='admin_logout'),
 
+    # Public Landing Page
+    path('', landing_page_view, name='landing_page'),
+    path('home/', landing_page_view, name='landing_home'),
+
     # Core & Dashboard
-    path('', dashboard_view, name='dashboard'),
+    path('dashboard/', dashboard_view, name='dashboard'),
     path('school-settings/', school_settings_view, name='school_settings'),
     path('organization-settings/', school_settings_view, name='organization_settings'),
     path('audit-logs/', audit_logs_view, name='audit_logs'),
