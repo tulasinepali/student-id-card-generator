@@ -430,11 +430,9 @@
                 <a href="#pricing" class="btn btn-outline-dark btn-lg fw-bold px-4 py-3 rounded-pill">
                     <i class="bi bi-tag-fill me-2"></i> View Pricing (NPR)
                 </a>
-                {% if sample_token %}
-                <a href="{% url 'public_qr_verify' token=sample_token %}" target="_blank" class="btn btn-light btn-lg fw-bold px-4 py-3 rounded-pill border text-primary">
-                    <i class="bi bi-qr-code-scan me-2"></i> Test Live Verification
-                </a>
-                {% endif %}
+                <span class="d-inline-flex align-items-center text-muted fw-semibold px-4 py-3 bg-light rounded-pill border">
+                    <i class="bi bi-qr-code-scan me-2 text-primary"></i> Test Live Verification
+                </span>
             </div>
 
             <!-- Key Feature Micro-Badges -->

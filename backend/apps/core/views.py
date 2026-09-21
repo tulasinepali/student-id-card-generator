@@ -27,7 +27,7 @@ def landing_page_view(request):
     - Dynamic Subscription Plans in NPR
     - Demo Request submission
     """
-    plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price_per_year')
+    plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price_per_year')[:4]
     sample_card = IDCard.objects.filter(card_status='ACTIVE').first() or IDCard.objects.first()
     sample_token = sample_card.secure_token if sample_card else None
 
