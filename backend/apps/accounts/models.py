@@ -23,10 +23,23 @@ class User(AbstractUser):
         return self.role == 'TEACHER'
 
     def is_administrator(self):
-        return self.role == 'ADMIN' or self.is_superuser
+        """Returns True ONLY for organization administrators (not platform superadmins)."""
+        return self.role == 'ADMIN' and not self.is_superuser
 
     def is_super_admin(self):
-        return self.role == 'SUPER_ADMIN' or self.is_superuser
+        """Returns True ONLY for platform superadmins / platform owners."""
+        return self.role == 'SUPER_ADMIN' or (self.is_superuser and self.role != 'ADMIN')
+
+    def save(self, *args, **kwargs):
+        """Strictly enforce credential and role boundaries at the model level."""
+        if self.role == 'SUPER_ADMIN':
+            self.is_superuser = True
+            self.is_staff = True
+            self.organization = None
+        elif self.role in ('ADMIN', 'TEACHER'):
+            self.is_superuser = False
+            self.is_staff = False
+        super().save(*args, **kwargs)
 
 
 class TeacherProfile(models.Model):

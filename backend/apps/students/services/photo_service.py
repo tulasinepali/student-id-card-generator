@@ -12,6 +12,7 @@ from apps.core.utils import get_current_organization
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 TARGET_RATIO = (3, 4)  # Width to Height ratio for ID card student photos
 MAX_DIMENSION = 800     # Max px dimension for high quality without bloat
+Image.MAX_IMAGE_PIXELS = 16_000_000  # Security: Prevent decompression bomb DoS attacks
 
 
 def process_student_photo(file_obj, target_aspect_ratio=(3, 4), max_dimension=800):
@@ -87,6 +88,12 @@ def process_bulk_photo_zip(zip_file_obj, class_level=None, section=None, academi
 
     try:
         with zipfile.ZipFile(zip_file_obj, 'r') as z:
+            # Security: Prevent zip bomb attacks (cap total uncompressed size)
+            MAX_UNCOMPRESSED_TOTAL = 300 * 1024 * 1024  # 300MB ceiling
+            total_uncompressed = sum(info.file_size for info in z.infolist())
+            if total_uncompressed > MAX_UNCOMPRESSED_TOTAL:
+                raise ValueError(f"ZIP uncompressed content ({total_uncompressed // (1024 * 1024)}MB) exceeds maximum safe limit of 300MB.")
+
             namelist = z.namelist()
             results['total_files_in_zip'] = len([f for f in namelist if not f.endswith('/') and not f.startswith('__MACOSX')])
 

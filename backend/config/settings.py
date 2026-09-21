@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'apps.platform_admin.middleware.OrganizationSuspensionMiddleware',
+    'apps.platform_admin.middleware.PortalSeparationMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -150,7 +151,7 @@ MAX_ZIP_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_EXCEL_UPLOAD_SIZE = 10 * 1024 * 1024 # 10MB
 ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 
-# CORS Configuration (allows Flutter Web in Chrome and external clients)
+# CORS Configuration (allows Flutter Web in Chrome and mobile clients)
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -164,3 +165,25 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# Security Hardening & Browser Protections
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Production-Specific Security Toggles
+if not DEBUG:
+    # Ensure allowed hosts is strictly populated without wildcards in production
+    if '*' in ALLOWED_HOSTS:
+        ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h != '*']
+    SECURE_BROWSER_XSS_FILTER = True
+    if os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1'):
+        SECURE_SSL_REDIRECT = True
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+

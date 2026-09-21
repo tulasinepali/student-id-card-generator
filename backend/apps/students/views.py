@@ -538,11 +538,20 @@ def student_create_edit_view(request, pk=None):
 
         # Handle Photo Upload
         if 'photo' in request.FILES:
-            try:
-                processed = process_student_photo(request.FILES['photo'])
-                student.photo.save(f"{student.student_id}.jpg", processed, save=False)
-            except Exception as e:
-                messages.error(request, f"Photo processing failed: {str(e)}")
+            photo_file = request.FILES['photo']
+            ext = os.path.splitext(photo_file.name)[1].lower()
+            allowed_exts = getattr(settings, 'ALLOWED_IMAGE_EXTENSIONS', ['.jpg', '.jpeg', '.png', '.webp'])
+            max_size = getattr(settings, 'MAX_IMAGE_UPLOAD_SIZE', 5 * 1024 * 1024)
+            if ext not in allowed_exts:
+                messages.error(request, f"Unsupported photo format '{ext}'. Allowed extensions: JPG, JPEG, PNG, WEBP.")
+            elif photo_file.size > max_size:
+                messages.error(request, f"Photo exceeds the maximum allowed size of {max_size // (1024 * 1024)}MB.")
+            else:
+                try:
+                    processed = process_student_photo(photo_file)
+                    student.photo.save(f"{student.student_id}.jpg", processed, save=False)
+                except Exception as e:
+                    messages.error(request, f"Photo processing failed: {str(e)}")
 
         # Client association under Studio / Press account
         if is_studio and client_id_val:
@@ -633,6 +642,17 @@ def excel_import_view(request):
 
             if not excel_file:
                 messages.error(request, "Please select an Excel (.xlsx) file to upload.")
+                return redirect('excel_import')
+
+            # Security: Validate file extension and size
+            file_ext = os.path.splitext(excel_file.name)[1].lower()
+            if file_ext not in ['.xlsx', '.xlsm']:
+                messages.error(request, "Invalid file format. Only Excel files (.xlsx, .xlsm) are permitted.")
+                return redirect('excel_import')
+
+            max_excel_size = getattr(settings, 'MAX_EXCEL_UPLOAD_SIZE', 10 * 1024 * 1024)
+            if excel_file.size > max_excel_size:
+                messages.error(request, f"Excel file exceeds maximum allowed size of {max_excel_size // (1024 * 1024)}MB.")
                 return redirect('excel_import')
 
             class_obj = ClassLevel.objects.filter(id=class_id).first() if class_id else None
@@ -759,6 +779,17 @@ def bulk_photos_view(request):
 
         if not zip_file:
             messages.error(request, "Please select a ZIP file containing student photos.")
+            return redirect('bulk_photos')
+
+        # Security: Validate file extension and size
+        file_ext = os.path.splitext(zip_file.name)[1].lower()
+        if file_ext != '.zip':
+            messages.error(request, "Invalid file format. Only ZIP archives (.zip) are permitted.")
+            return redirect('bulk_photos')
+
+        max_zip_size = getattr(settings, 'MAX_ZIP_UPLOAD_SIZE', 100 * 1024 * 1024)
+        if zip_file.size > max_zip_size:
+            messages.error(request, f"ZIP file exceeds maximum allowed size of {max_zip_size // (1024 * 1024)}MB.")
             return redirect('bulk_photos')
 
         class_obj = ClassLevel.objects.filter(id=class_id).first() if class_id else None

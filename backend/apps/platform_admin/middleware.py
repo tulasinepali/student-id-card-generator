@@ -90,3 +90,49 @@ class OrganizationSuspensionMiddleware:
             return redirect('admin_login')
 
         return self.get_response(request)
+
+
+class PortalSeparationMiddleware:
+    """
+    Strictly enforces separation between Platform Owner and Organization portals:
+    - Platform Owners / Super Admins accessing organization routes without active Support Mode are redirected to the Platform Console.
+    - Organization Admins accessing /platform-admin/ routes are blocked with HTTP 403 Forbidden.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path
+
+        # Bypass static, media, API, public verification, root, and auth routes
+        if (path.startswith('/static/') or 
+            path.startswith('/media/') or 
+            path.startswith('/api/') or 
+            path.startswith('/verify/') or
+            path.startswith('/admin/') or
+            path in ('/', '/home/', '/login/', '/logout/', '/platform-admin/login/')):
+            return self.get_response(request)
+
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            is_super = getattr(user, 'is_super_admin', None)
+            is_platform_super = is_super() if callable(is_super) else (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN')
+
+            # 1. If Platform Super Admin attempts to access organization routes directly:
+            if is_platform_super and not path.startswith('/platform-admin/'):
+                # Allow ONLY if currently in active Support Mode inspecting a tenant
+                if not request.session.get('support_mode_org_id'):
+                    messages.warning(
+                        request,
+                        "Access Denied: Platform Owner accounts cannot access the Organization Site directly. "
+                        "You have been redirected to the Platform Console."
+                    )
+                    return redirect('platform_admin:dashboard')
+
+            # 2. If Organization User attempts to access platform-admin routes:
+            if not is_platform_super and path.startswith('/platform-admin/'):
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("403 Forbidden: Organization accounts cannot access the Platform Portal.")
+
+        return self.get_response(request)
+

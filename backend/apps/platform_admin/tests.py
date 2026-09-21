@@ -90,6 +90,55 @@ class PlatformAdminSecurityAndAuthTests(TestCase):
         # Should redirect back to platform login with error
         self.assertIn('/platform-admin/login/', response.url)
 
+    def test_platform_owner_credentials_blocked_from_organization_site_login(self):
+        """Platform Super Admin credentials cannot be used to log into the Organization site."""
+        response = self.client.post(reverse('admin_login'), {
+            'username': 'platform_super',
+            'password': 'secretpassword123'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Access Denied: Platform Owner")
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_organization_admin_credentials_blocked_from_platform_login(self):
+        """Organization Admin credentials cannot be used to log into the Platform Portal."""
+        response = self.client.post(reverse('platform_admin:login'), {
+            'username': 'org_admin_user',
+            'password': 'adminpassword123'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/platform-admin/login/', response.url)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_platform_owner_credentials_blocked_from_mobile_api(self):
+        """Platform Super Admin credentials cannot log into Teacher Mobile App REST API."""
+        response = self.client.post(reverse('api_login'), {
+            'username': 'platform_super',
+            'password': 'secretpassword123'
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('Platform Owner', response.json().get('error', ''))
+
+    def test_organization_admin_allowed_into_organization_login(self):
+        """Organization Admin credentials succeed at Organization Site login."""
+        response = self.client.post(reverse('admin_login'), {
+            'username': 'org_admin_user',
+            'password': 'adminpassword123'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('dashboard'), response.url)
+        self.assertIn('_auth_user_id', self.client.session)
+
+    def test_platform_owner_allowed_into_platform_login(self):
+        """Platform Owner credentials succeed at Platform Portal login."""
+        response = self.client.post(reverse('platform_admin:login'), {
+            'username': 'platform_super',
+            'password': 'secretpassword123'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('platform_admin:dashboard'), response.url)
+        self.assertIn('_auth_user_id', self.client.session)
+
 
 class PlatformAdminOrganizationTests(TestCase):
     """

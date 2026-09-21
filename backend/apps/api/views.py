@@ -55,6 +55,15 @@ class CustomLoginView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Reject Platform Super Admins from accessing mobile API
+        is_super = getattr(user, 'is_super_admin', None)
+        is_platform_super = is_super() if callable(is_super) else (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN')
+        if is_platform_super:
+            return Response(
+                {'error': 'Access Denied: Platform Owner credentials cannot be used on the Teacher Mobile App.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Check organization suspension
         org = getattr(user, 'organization', None)
         if not org and not (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN'):

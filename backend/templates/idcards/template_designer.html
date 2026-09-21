@@ -534,10 +534,8 @@
     </div>
 </div>
 
-<!-- Data hydration from backend -->
-<script id="elements-data" type="application/json">
-    {{ elements_json_str|safe }}
-</script>
+<!-- Secure Data hydration from backend (immune to XSS / script injection) -->
+{{ elements_json|json_script:"elements-data" }}
 
 <script>
     // System Configurations & Data Hydration

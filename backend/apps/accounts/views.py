@@ -18,8 +18,13 @@ def is_admin(user):
 
 
 def admin_login_view(request):
-    if request.user.is_authenticated and (request.user.is_superuser or request.user.role == 'ADMIN'):
-        return redirect('dashboard')
+    if request.user.is_authenticated:
+        is_super = getattr(request.user, 'is_super_admin', None)
+        is_platform_super = is_super() if callable(is_super) else (request.user.is_superuser or getattr(request.user, 'role', '') == 'SUPER_ADMIN')
+        if is_platform_super:
+            return redirect('platform_admin:dashboard')
+        if request.user.role == 'ADMIN':
+            return redirect('dashboard')
 
     if request.method == 'POST':
         u = request.POST.get('username', '').strip()
@@ -27,17 +32,36 @@ def admin_login_view(request):
 
         user = authenticate(username=u, password=p)
         if user is not None:
+            # 1. Platform Super Admin / Platform Owner check:
+            # Platform owner accounts CANNOT log into organization site!
+            is_super = getattr(user, 'is_super_admin', None)
+            is_platform_super = is_super() if callable(is_super) else (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN')
+            if is_platform_super:
+                messages.error(
+                    request,
+                    "Access Denied: Platform Owner / Super Administrator credentials cannot be used to log into the Organization Site. "
+                    "Please log into the Platform Portal at /platform-admin/."
+                )
+                return render(request, 'accounts/login.html')
+
+            # 2. Teacher check:
             if user.role == 'TEACHER':
                 messages.error(request, "Teacher accounts are not permitted in the web administration panel. Please use the mobile application.")
                 return render(request, 'accounts/login.html')
 
+            # 3. Active check:
             if not user.is_active:
                 messages.error(request, "This account is inactive. Please contact system administrator.")
                 return render(request, 'accounts/login.html')
 
-            # Check organization suspension
+            # 4. Role check: only organization administrators
+            if user.role != 'ADMIN':
+                messages.error(request, "Access Denied: Only organization administrators can log into this portal.")
+                return render(request, 'accounts/login.html')
+
+            # 5. Check organization suspension
             org = getattr(user, 'organization', None)
-            if not org and not (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN'):
+            if not org:
                 from apps.platform_admin.models import Organization
                 org = Organization.objects.filter(school_id=1).first()
 
@@ -47,8 +71,13 @@ def admin_login_view(request):
 
             login(request, user)
             log_action(user=user, action='ADMIN_LOGIN', details={'panel': 'Web Admin'}, request=request)
-            next_url = request.GET.get('next') or 'dashboard'
-            return redirect(next_url)
+            
+            # Prevent Open Redirect attacks by validating next_url domain
+            from django.utils.http import url_has_allowed_host_and_scheme
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
+            return redirect('dashboard')
         else:
             messages.error(request, "Invalid username or password.")
 

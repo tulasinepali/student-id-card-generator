@@ -502,6 +502,7 @@ def template_designer_view(request, pk):
 
     return render(request, 'idcards/template_designer.html', {
         'template': template,
+        'elements_json': elements_json,
         'elements_json_str': json.dumps(elements_json),
         'school': school,
         'students_for_preview': students_for_preview,

@@ -33,8 +33,18 @@ def login_view(request):
     Dedicated Super Admin login.
     Strictly forbids normal organization admins and teachers from logging in here.
     """
-    if request.user.is_authenticated and getattr(request.user, 'is_super_admin', lambda: False)():
-        return redirect('platform_admin:dashboard')
+    if request.user.is_authenticated:
+        is_super = getattr(request.user, 'is_super_admin', None)
+        has_perm = is_super() if callable(is_super) else (request.user.is_superuser or getattr(request.user, 'role', '') == 'SUPER_ADMIN')
+        if has_perm:
+            return redirect('platform_admin:dashboard')
+        else:
+            messages.error(
+                request,
+                "Access Denied: Organization accounts cannot access the Platform Portal. "
+                "You have been redirected to your organization dashboard."
+            )
+            return redirect('dashboard')
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
@@ -62,8 +72,12 @@ def login_view(request):
                 description=f"Super Admin {user.username} logged in to platform portal.",
                 request=request
             )
-            next_url = request.GET.get('next') or request.POST.get('next') or 'platform_admin:dashboard'
-            return redirect(next_url)
+            # Prevent Open Redirect attacks by validating next_url domain
+            from django.utils.http import url_has_allowed_host_and_scheme
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
+            return redirect('platform_admin:dashboard')
         else:
             messages.error(request, "Invalid Super Admin credentials. Please try again.")
 
