@@ -4,7 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CardFlow ID &bull; Multi-Tenant Student ID Card & Printing System</title>
+    <title>{{ site_name }} &bull; Multi-Tenant Student ID Card & Printing System</title>
+    <!-- Favicon -->
+    {% if site_favicon %}
+    <link rel="icon" type="image/x-icon" href="{{ site_favicon }}">
+    <link rel="shortcut icon" href="{{ site_favicon }}">
+    {% endif %}
     <!-- Favicon / Meta -->
     <meta name="description" content="Next-generation multi-tenant student ID card management and high-precision printing platform for schools, colleges, and commercial printing studios.">
 
@@ -339,12 +344,16 @@
         <div class="container">
             <!-- Brand -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'landing_page' %}">
+                {% if platform_settings and platform_settings.platform_logo %}
+                <img src="{{ platform_settings.platform_logo.url }}" alt="Logo" class="rounded-3" style="width: 38px; height: 38px; object-fit: contain;">
+                {% else %}
                 <div class="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
                     <i class="bi bi-credit-card-2-front-fill fs-5"></i>
                 </div>
+                {% endif %}
                 <div>
-                    <span class="fw-bolder fs-5 text-dark font-heading">CardFlow</span>
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size: 0.65rem;">IDSYS</span>
+                    <span class="fw-bolder fs-5 text-dark font-heading">{{ site_name }}</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size: 0.65rem;">SaaS</span>
                 </div>
             </a>
 
@@ -1241,8 +1250,8 @@
             </div>
 
             <div class="pt-4 border-top border-secondary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center small text-secondary">
-                <div>&copy; 2026 CardFlow Identity Management System. All rights reserved.</div>
-                <div>Designed for high-speed institutional ID card printing in Nepal.</div>
+                <div>{{ site_copyright }}</div>
+                <div>Developed by <a href="{{ site_developed_by_url }}" target="_blank" class="text-white text-decoration-none fw-semibold">{{ site_developed_by }}</a></div>
             </div>
         </div>
     </footer>

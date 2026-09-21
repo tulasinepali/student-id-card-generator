@@ -53,6 +53,19 @@ def school_settings_context(request):
     elif org:
         effective_uses_mobile_app = getattr(org, 'uses_mobile_app', True)
 
+    # Global Platform Settings & Master Branding
+    try:
+        from apps.platform_admin.models import PlatformSetting
+        platform_settings = PlatformSetting.get_instance()
+    except Exception:
+        platform_settings = None
+
+    site_name = platform_settings.platform_name if platform_settings else settings.APP_NAME
+    site_favicon = platform_settings.favicon.url if (platform_settings and platform_settings.favicon) else None
+    site_copyright = platform_settings.copyright_text if platform_settings else f"© {settings.APP_COPYRIGHT_YEAR} {site_name}. All Rights Reserved."
+    site_developed_by = platform_settings.developed_by if platform_settings else settings.APP_DESIGNER_NAME
+    site_developed_by_url = platform_settings.developed_by_url if platform_settings else settings.APP_WEBSITE
+
     return {
         'school': effective_school,
         'organization': org,
@@ -61,16 +74,23 @@ def school_settings_context(request):
         'active_client': active_client,
         'active_client_id': active_client.id if active_client else None,
         'effective_uses_mobile_app': effective_uses_mobile_app,
+        'platform_settings': platform_settings,
+        'site_name': site_name,
+        'site_favicon': site_favicon,
+        'site_copyright': site_copyright,
+        'site_developed_by': site_developed_by,
+        'site_developed_by_url': site_developed_by_url,
         'app_config': {
-            'name': settings.APP_NAME,
-            'version': settings.APP_VERSION,
-            'description': settings.APP_DESCRIPTION,
-            'designer_name': settings.APP_DESIGNER_NAME,
-            'designer_role': settings.APP_DESIGNER_ROLE,
-            'contact_phone': settings.APP_CONTACT_PHONE,
-            'contact_email': settings.APP_CONTACT_EMAIL,
-            'website': settings.APP_WEBSITE,
-            'copyright_year': settings.APP_COPYRIGHT_YEAR,
+            'name': platform_settings.app_name if platform_settings else settings.APP_NAME,
+            'version': platform_settings.app_version if platform_settings else settings.APP_VERSION,
+            'description': platform_settings.app_description if platform_settings else settings.APP_DESCRIPTION,
+            'designer_name': site_developed_by,
+            'designer_role': platform_settings.app_designer_role if platform_settings else settings.APP_DESIGNER_ROLE,
+            'contact_phone': platform_settings.app_contact_phone if platform_settings else settings.APP_CONTACT_PHONE,
+            'contact_email': platform_settings.app_contact_email if platform_settings else settings.APP_CONTACT_EMAIL,
+            'website': site_developed_by_url,
+            'copyright_year': site_copyright,
         }
     }
+
 

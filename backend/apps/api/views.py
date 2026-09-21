@@ -595,17 +595,26 @@ class AppConfigView(views.APIView):
         if ps.app_logo:
             logo_url = request.build_absolute_uri(ps.app_logo.url)
 
+        favicon_url = None
+        if ps.favicon:
+            favicon_url = request.build_absolute_uri(ps.favicon.url)
+
         return Response({
+            'site_name': ps.platform_name or getattr(settings, 'APP_NAME', 'CardFlow ID'),
             'app_name': ps.app_name or getattr(settings, 'APP_NAME', 'Apex ID - Teacher Portal'),
             'logo_url': logo_url,
+            'favicon_url': favicon_url,
             'version': ps.app_version or getattr(settings, 'APP_VERSION', '1.0.0'),
             'description': ps.app_description or getattr(settings, 'APP_DESCRIPTION', ''),
             'designer_name': ps.app_designer_name or getattr(settings, 'APP_DESIGNER_NAME', ''),
             'designer_role': ps.app_designer_role or getattr(settings, 'APP_DESIGNER_ROLE', ''),
+            'developed_by': ps.developed_by or ps.app_designer_name or getattr(settings, 'APP_DESIGNER_NAME', ''),
+            'developed_by_url': ps.developed_by_url or ps.app_website or getattr(settings, 'APP_WEBSITE', ''),
             'contact_phone': ps.app_contact_phone or getattr(settings, 'APP_CONTACT_PHONE', ''),
             'contact_email': ps.app_contact_email or getattr(settings, 'APP_CONTACT_EMAIL', ''),
             'website': ps.app_website or getattr(settings, 'APP_WEBSITE', ''),
-            'copyright_year': ps.app_copyright_text or getattr(settings, 'APP_COPYRIGHT_YEAR', '2026'),
+            'copyright_text': ps.copyright_text or getattr(settings, 'APP_COPYRIGHT_YEAR', '2026'),
+            'copyright_year': ps.app_copyright_text or ps.copyright_text or getattr(settings, 'APP_COPYRIGHT_YEAR', '2026'),
         })
 
 

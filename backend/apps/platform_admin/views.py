@@ -1278,6 +1278,9 @@ def platform_settings_view(request):
     if request.method == 'POST':
         # Platform Web Settings
         settings_obj.platform_name = request.POST.get('platform_name', settings_obj.platform_name).strip()
+        settings_obj.copyright_text = request.POST.get('copyright_text', settings_obj.copyright_text).strip()
+        settings_obj.developed_by = request.POST.get('developed_by', settings_obj.developed_by).strip()
+        settings_obj.developed_by_url = request.POST.get('developed_by_url', settings_obj.developed_by_url).strip()
         settings_obj.support_email = request.POST.get('support_email', settings_obj.support_email).strip()
         settings_obj.support_phone = request.POST.get('support_phone', settings_obj.support_phone).strip()
         settings_obj.default_trial_days = int(request.POST.get('default_trial_days', 30))
@@ -1294,11 +1297,20 @@ def platform_settings_view(request):
         settings_obj.app_website = request.POST.get('app_website', settings_obj.app_website).strip()
         settings_obj.app_copyright_text = request.POST.get('app_copyright_text', settings_obj.app_copyright_text).strip()
 
+        if 'favicon' in request.FILES:
+            settings_obj.favicon = request.FILES['favicon']
+        elif request.POST.get('clear_favicon') == '1':
+            settings_obj.favicon = None
+
         if 'platform_logo' in request.FILES:
             settings_obj.platform_logo = request.FILES['platform_logo']
+        elif request.POST.get('clear_platform_logo') == '1':
+            settings_obj.platform_logo = None
 
         if 'app_logo' in request.FILES:
             settings_obj.app_logo = request.FILES['app_logo']
+        elif request.POST.get('clear_app_logo') == '1':
+            settings_obj.app_logo = None
 
         settings_obj.save()
 

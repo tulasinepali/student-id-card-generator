@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Super Admin Platform{% endblock %} | Platform Owner</title>
+    <title>{% block title %}Super Admin Platform{% endblock %} | {{ site_name }}</title>
+    <!-- Favicon -->
+    {% if site_favicon %}
+    <link rel="icon" type="image/x-icon" href="{{ site_favicon }}">
+    <link rel="shortcut icon" href="{{ site_favicon }}">
+    {% endif %}
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -142,12 +147,16 @@
     <nav id="platformSidebar">
         <div class="brand-header d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
+                {% if platform_settings and platform_settings.platform_logo %}
+                <img src="{{ platform_settings.platform_logo.url }}" alt="Logo" class="rounded-3" style="width: 34px; height: 34px; object-fit: contain;">
+                {% else %}
                 <div class="rounded-3 bg-primary p-2 text-white d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
                     <i class="bi bi-grid-fill"></i>
                 </div>
+                {% endif %}
                 <div>
-                    <h6 class="text-white mb-0 fw-bold" style="font-size: 0.95rem;">Platform Owner</h6>
-                    <small class="text-secondary" style="font-size: 0.72rem;">SaaS Control Panel</small>
+                    <h6 class="text-white mb-0 fw-bold text-truncate" style="font-size: 0.95rem; max-width: 140px;">{{ site_name }}</h6>
+                    <small class="text-secondary" style="font-size: 0.72rem;">Super Admin Panel</small>
                 </div>
             </div>
             <span class="badge bg-danger" style="font-size: 0.65rem;">SUPER</span>
@@ -253,7 +262,10 @@
 
         <!-- Footer -->
         <footer class="bg-white border-top py-3 px-4 text-center text-muted small">
-            <div>&copy; {% now "Y" %} Antigravity ID Platform SaaS. All rights reserved. &bull; Enterprise Multi-Organization Control System</div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div>{{ site_copyright }}</div>
+                <div>Developed by <a href="{{ site_developed_by_url }}" target="_blank" class="text-decoration-none fw-semibold text-primary">{{ site_developed_by }}</a></div>
+            </div>
         </footer>
     </div>
 

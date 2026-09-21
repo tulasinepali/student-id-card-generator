@@ -269,9 +269,14 @@ class SupportSession(models.Model):
 
 
 class PlatformSetting(models.Model):
-    # Platform / Web Settings
-    platform_name = models.CharField(max_length=150, default="Antigravity ID Platform")
-    platform_logo = models.ImageField(upload_to='platform/branding/', blank=True, null=True)
+    # Platform / Web Global Settings
+    platform_name = models.CharField(max_length=150, default="CardFlow ID", verbose_name="Site / Platform Name")
+    platform_logo = models.ImageField(upload_to='platform/branding/', blank=True, null=True, verbose_name="Master Platform Logo")
+    favicon = models.ImageField(upload_to='platform/branding/', blank=True, null=True, verbose_name="Favicon (.ico, .png)")
+    copyright_text = models.CharField(max_length=200, default="© 2026 CardFlow ID. All Rights Reserved.", blank=True, verbose_name="Copyright Text")
+    developed_by = models.CharField(max_length=150, default="Apex Software Systems", blank=True, verbose_name="Developed By")
+    developed_by_url = models.URLField(default="https://apexid.io", blank=True, verbose_name="Developer Website URL")
+
     support_email = models.EmailField(default="support@idplatform.io")
     support_phone = models.CharField(max_length=50, default="+1-800-ID-CARDS")
     default_trial_days = models.PositiveIntegerField(default=30)
