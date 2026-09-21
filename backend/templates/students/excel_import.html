@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Excel Student Import{% endblock %}
+{% block page_heading %}Class-Wise & Organization-Wide Excel Import{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>Upload Student Roster</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="importForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="step" value="upload">
+
+                    <!-- Mode Selection -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Import Mode</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="mode" id="modeClassWise" value="class_wise" checked>
+                                <label class="form-check-label fw-semibold small" for="modeClassWise">
+                                    Class-Wise Mode (Recommended)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="mode" id="modeFullSchool" value="full_school">
+                                <label class="form-check-label fw-semibold small" for="modeFullSchool">
+                                    Organization-Wide Mode (Class & Section in File)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scope selection for class-wise mode -->
+                    <div id="classWiseFields" class="p-3 bg-light rounded mb-3">
+                        <h6 class="small fw-bold text-dark mb-2">Select Target Class Scope</h6>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Academic Year *</label>
+                                <select name="academic_year" class="form-select form-select-sm">
+                                    {% for y in years %}
+                                        <option value="{{ y.id }}" {% if y.is_active %}selected{% endif %}>{{ y.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Class Level *</label>
+                                <select name="class_level" class="form-select form-select-sm">
+                                    <option value="">-- Choose Class --</option>
+                                    {% for c in classes %}
+                                        <option value="{{ c.id }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Section *</label>
+                                <select name="section" class="form-select form-select-sm">
+                                    <option value="">-- Choose Section --</option>
+                                    {% for c in classes %}
+                                        <optgroup label="{{ c.name }}">
+                                            {% for s in c.sections.all %}
+                                                <option value="{{ s.id }}">{{ c.name }} - Sec {{ s.name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-text small mt-1">Students will be assigned directly into this class, section, and session.</div>
+                    </div>
+
+                    <!-- File Upload Input -->
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold">Excel File (.xlsx) *</label>
+                        <input type="file" name="excel_file" class="form-control" accept=".xlsx" required>
+                        <div class="form-text">Supports Microsoft Excel format (.xlsx) up to 10MB.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-shield-check text-success me-1"></i>2-Phase dry-run validation before import</span>
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                            <i class="bi bi-search me-1"></i> Parse & Validate Preview
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Template Download & Guidelines -->
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-download text-primary me-2"></i>Download Clean Templates</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Use pre-formatted Excel templates with styled column headers and instructions to ensure clean validation.</p>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'excel_template_download' %}?mode=class_wise" class="btn btn-outline-primary btn-sm text-start py-2">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Download Class-Wise Template (.xlsx)
+                    </a>
+                    <a href="{% url 'excel_template_download' %}?mode=full_school" class="btn btn-outline-secondary btn-sm text-start py-2">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Download Organization-Wide Template (.xlsx)
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 bg-white">
+            <h6 class="fw-bold mb-2"><i class="bi bi-check2-circle text-success me-1"></i>Validation Checks Run:</h6>
+            <ul class="small text-muted ps-3 mb-0">
+                <li class="mb-1"><strong>Required fields:</strong> Roll number, Student ID, Full Name, DOB, Gender.</li>
+                <li class="mb-1"><strong>Duplicate check:</strong> Uniqueness of Student IDs across file & existing database.</li>
+                <li class="mb-1"><strong>Roll uniqueness:</strong> Uniqueness of roll numbers within the target class/section.</li>
+                <li class="mb-1"><strong>Dates:</strong> Validates format (YYYY-MM-DD or standard Excel date).</li>
+                <li><strong>Safe transactions:</strong> Atomic database commit ensures no partial or corrupted data.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modeClassWise = document.getElementById('modeClassWise');
+    const modeFullSchool = document.getElementById('modeFullSchool');
+    const classWiseFields = document.getElementById('classWiseFields');
+
+    function toggleFields() {
+        if (modeFullSchool.checked) {
+            classWiseFields.style.display = 'none';
+        } else {
+            classWiseFields.style.display = 'block';
+        }
+    }
+    modeClassWise.addEventListener('change', toggleFields);
+    modeFullSchool.addEventListener('change', toggleFields);
+</script>
+{% endblock %}

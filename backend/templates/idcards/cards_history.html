@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}ID Card History & Revocation{% endblock %}
+{% block page_heading %}Issued ID Cards Archive & Revocation{% endblock %}
+
+{% block content %}
+{% if is_studio %}
+<div class="alert alert-info d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <i class="bi bi-buildings-fill me-2 fs-5"></i>
+        {% if active_client %}
+            <strong>Active Client Scope:</strong> Viewing issued cards archive for <strong>{{ active_client.name }}</strong> only.
+        {% else %}
+            <strong>Global Studio Scope:</strong> Viewing issued cards archive across <strong>all client institutions</strong>.
+        {% endif %}
+    </div>
+    {% if active_client %}
+        <a href="{% url 'switch_client' 0 %}" class="btn btn-sm btn-outline-info">View All Clients</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search by student name, ID, or card number..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-4">
+                <select name="validity_status" class="form-select form-select-sm">
+                    <option value="">-- All Card Statuses --</option>
+                    <option value="ACTIVE" {% if selected_status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                    <option value="EXPIRED" {% if selected_status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+                    <option value="REVOKED" {% if selected_status == 'REVOKED' %}selected{% endif %}>Revoked</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
+                <a href="{% url 'cards_history' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary me-2"></i>Institutional ID Card Records</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Card Number</th>
+                    {% if is_studio %}<th>Client Organization</th>{% endif %}
+                    <th>Student Details</th>
+                    <th>Class & Section</th>
+                    <th>Academic Session</th>
+                    <th>Validity Dates</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in page_obj %}
+                <tr>
+                    <td class="fw-bold"><code>{{ c.card_number }}</code></td>
+                    {% if is_studio %}
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ c.student.client.name|default:"Studio Internal" }}</span>
+                    </td>
+                    {% endif %}
+                    <td>
+                        <div class="fw-semibold text-dark">{{ c.student.full_name }}</div>
+                        <small class="text-muted">ID: {{ c.student.student_id }}</small>
+                    </td>
+                    <td>{{ c.student.class_level.name }} &mdash; Sec {{ c.student.section.name }}</td>
+                    <td>{{ c.academic_year.name }}</td>
+                    <td class="small">{{ c.valid_from|date:"d M Y" }} &ndash; {{ c.valid_until|date:"d M Y" }}</td>
+                    <td>
+                        {% if c.validity_status == 'ACTIVE' %}
+                            <span class="badge badge-active px-2 py-1">Active</span>
+                        {% elif c.validity_status == 'REVOKED' %}
+                            <span class="badge badge-revoked px-2 py-1" title="{{ c.revocation_reason }}">Revoked</span>
+                        {% else %}
+                            <span class="badge badge-expired px-2 py-1">Expired</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'public_qr_verify' c.secure_token %}" target="_blank" class="btn btn-sm btn-outline-primary py-1 px-2" title="Test QR Scan">
+                            <i class="bi bi-qr-code"></i>
+                        </a>
+
+                        {% if c.validity_status == 'ACTIVE' %}
+                            <a href="{% url 'revoke_card' c.id %}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Revoke ID Card">
+                                <i class="bi bi-x-octagon"></i> Revoke
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{% if is_studio %}8{% else %}7{% endif %}" class="text-center py-4 text-muted">No ID card records found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+            <span class="small text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            <ul class="pagination pagination-sm m-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&validity_status={{ selected_status }}">Previous</a></li>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&validity_status={{ selected_status }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

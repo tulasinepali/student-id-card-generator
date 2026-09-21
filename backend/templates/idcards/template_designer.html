@@ -1,0 +1,1259 @@
+{% extends 'base.html' %}
+
+{% block title %}Advanced Designer: {{ template.name }}{% endblock %}
+{% block page_heading %}Advanced ID Card Template Designer{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --canvas-scale: 4.5px; /* 1mm = 4.5px */
+    }
+
+    .designer-container {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+    }
+
+    /* Canvas Work Area */
+    .canvas-work-area {
+        background-color: #0F172A;
+        background-image: 
+            radial-gradient(#334155 1px, transparent 1px),
+            radial-gradient(#334155 1px, #0F172A 1px);
+        background-size: 20px 20px;
+        background-position: 0 0, 10px 10px;
+        border-radius: 8px;
+        padding: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        min-height: 520px;
+        overflow: auto;
+    }
+
+    /* Physical Card Canvas */
+    .id-card-stage {
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
+        position: relative;
+        user-select: none;
+        overflow: hidden;
+        background-color: #FFFFFF;
+        transition: box-shadow 0.2s;
+    }
+
+    /* Grid Overlay */
+    .canvas-grid-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        background-size: calc(5 * var(--canvas-scale)) calc(5 * var(--canvas-scale));
+        background-image: 
+            linear-gradient(to right, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+        display: none;
+        z-index: 999;
+    }
+
+    /* Center Guide Lines */
+    .guide-v, .guide-h {
+        position: absolute;
+        pointer-events: none;
+        display: none;
+        z-index: 1000;
+    }
+    .guide-v {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        background-color: #3B82F6;
+        opacity: 0.6;
+    }
+    .guide-h {
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 1px;
+        background-color: #3B82F6;
+        opacity: 0.6;
+    }
+
+    /* Interactive Element on Canvas */
+    .designer-element {
+        position: absolute;
+        box-sizing: border-box;
+        cursor: move;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .designer-element:hover {
+        outline: 1px dashed #3B82F6;
+    }
+
+    .designer-element.selected {
+        outline: 2px solid #2563EB !important;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.8);
+        z-index: 1001 !important;
+    }
+
+    /* Resize Handles (8-points) */
+    .resize-handle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background-color: #FFFFFF;
+        border: 1.5px solid #2563EB;
+        border-radius: 2px;
+        display: none;
+        z-index: 1002;
+    }
+    .designer-element.selected .resize-handle {
+        display: block;
+    }
+    .handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+    .handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+    .handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+    .handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+    .handle-n  { top: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+    .handle-s  { bottom: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+    .handle-w  { top: calc(50% - 4px); left: -4px; cursor: ew-resize; }
+    .handle-e  { top: calc(50% - 4px); right: -4px; cursor: ew-resize; }
+
+    /* Toolbox Items */
+    .toolbox-item {
+        display: flex;
+        align-items: center;
+        padding: 7px 10px;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background-color: #FFFFFF;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        margin-bottom: 6px;
+    }
+    .toolbox-item:hover {
+        background-color: #EFF6FF;
+        border-color: #3B82F6;
+        color: #1D4ED8;
+        transform: translateY(-1px);
+    }
+    .toolbox-item i {
+        margin-right: 8px;
+        font-size: 0.95rem;
+    }
+
+    /* Layers List */
+    .layer-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px;
+        border-radius: 5px;
+        border: 1px solid #E2E8F0;
+        margin-bottom: 4px;
+        font-size: 0.78rem;
+        background: #FFFFFF;
+        cursor: pointer;
+    }
+    .layer-item.active {
+        border-color: #3B82F6;
+        background-color: #EFF6FF;
+        font-weight: 600;
+    }
+
+    /* Overflow Warning Banner */
+    .overflow-warning-banner {
+        display: none;
+        animation: pulseWarning 1.5s infinite;
+    }
+    @keyframes pulseWarning {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top Action & Navigation Bar -->
+<div class="card mb-3 shadow-sm border">
+    <div class="card-body py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'templates_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Templates
+            </a>
+            <div>
+                <h6 class="mb-0 fw-bold">{{ template.name }} <span class="badge bg-secondary-subtle text-secondary border">v{{ template.version }}</span></h6>
+                <small class="text-muted">{{ template.width_mm }} &times; {{ template.height_mm }} mm &bull; {{ template.get_orientation_display }} &bull; {{ template.get_design_mode_display }}</small>
+            </div>
+        </div>
+
+        <!-- Real Student Live Preview Switcher -->
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted fw-semibold text-nowrap"><i class="bi bi-person-check text-primary me-1"></i>Preview Data:</label>
+            <select class="form-select form-select-sm" id="studentPreviewSelect" style="max-width: 220px;" onchange="onStudentPreviewChange(this.value)">
+                <option value="SAMPLE" selected>Default Sample Values</option>
+                <option value="LONG_NAME">Long Name (Ram Prasad Bahadur Sharma)</option>
+                {% for s in students_for_preview %}
+                    <option value="{{ s.id }}">{{ s.full_name }} ({{ s.student_id }})</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewRandomStudent()" title="Preview random student to test layout extremes">
+                <i class="bi bi-shuffle"></i>
+            </button>
+        </div>
+
+        <!-- Canvas Side Tabs & Saving -->
+        <div class="d-flex align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary active fw-semibold" id="tabBtnFront" onclick="switchCanvasSide('FRONT')">
+                    <i class="bi bi-front me-1"></i> Front Side
+                </button>
+                <button type="button" class="btn btn-outline-primary fw-semibold" id="tabBtnBack" onclick="switchCanvasSide('BACK')">
+                    <i class="bi bi-back me-1"></i> Back Side
+                </button>
+            </div>
+
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="validateTemplateModal()" title="Run boundary and overlap checks">
+                <i class="bi bi-shield-check me-1"></i> Validate
+            </button>
+            <button type="button" class="btn btn-sm btn-primary px-3 fw-semibold" onclick="saveTemplateCanvas()">
+                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save Template
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Long Name Overflow Alert Banner -->
+<div id="overflowWarningBanner" class="alert alert-warning py-2 px-3 mb-3 d-none overflow-warning-banner d-flex align-items-center justify-content-between">
+    <div>
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <strong>Text Overflow Detected:</strong> <span id="overflowWarningText">A student field exceeds its designated text box width. Enable auto-shrink or widen the bounding box.</span>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-dark" onclick="autoFixOverflow()">Auto-Fix Width</button>
+</div>
+
+<!-- Main Designer Workspace -->
+<div class="row g-3">
+    
+    <!-- Column 1: Toolbox (Elements, Variables, Shapes) -->
+    <div class="col-lg-2">
+        <div class="card shadow-sm border h-100">
+            <div class="card-header bg-white py-2 px-3">
+                <h6 class="mb-0 fw-bold small text-uppercase text-secondary"><i class="bi bi-tools me-1 text-primary"></i>Toolbox</h6>
+            </div>
+            <div class="card-body p-2" style="max-height: 640px; overflow-y: auto;">
+                
+                <small class="fw-bold text-muted text-uppercase d-block mb-1" style="font-size: 0.7rem;">Student Fields</small>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.name}}', 'Ram Sharma', 45, 6, 'BOLD', 9.5, '#0F172A')">
+                    <i class="bi bi-person text-primary"></i> Student Name
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.student_id}}', 'STU-001', 30, 5, 'BOLD', 8.0, '#334155')">
+                    <i class="bi bi-card-text text-secondary"></i> Student ID
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.roll_no}}', '01', 20, 5, 'NORMAL', 8.0, '#334155')">
+                    <i class="bi bi-hash text-secondary"></i> Roll Number
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.class}} - {{student.section}}', 'Grade 10 - A', 35, 5, 'NORMAL', 8.0, '#334155')">
+                    <i class="bi bi-mortarboard text-secondary"></i> Class & Section
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.blood_group}}', 'B+', 20, 5, 'BOLD', 8.0, '#DC2626')">
+                    <i class="bi bi-droplet-fill text-danger"></i> Blood Group
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_name}}', 'Hari Sharma', 35, 5, 'NORMAL', 7.5, '#475569')">
+                    <i class="bi bi-people text-secondary"></i> Guardian Name
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_phone}}', '+977-9800000000', 35, 5, 'NORMAL', 7.5, '#475569')">
+                    <i class="bi bi-telephone text-secondary"></i> Guardian Phone
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.address}}', 'Kathmandu, Nepal', 45, 5, 'NORMAL', 7.5, '#475569')">
+                    <i class="bi bi-geo-alt text-secondary"></i> Address
+                </div>
+
+                <small class="fw-bold text-muted text-uppercase d-block mt-3 mb-1" style="font-size: 0.7rem;">Media & Verification</small>
+                <div class="toolbox-item" onclick="addElement('STUDENT_PHOTO', '', 'Student Photo', 24, 32)">
+                    <i class="bi bi-image text-info"></i> Student Photo
+                </div>
+                <div class="toolbox-item" onclick="addElement('QR_CODE', '{{qr_code}}', 'QR Code', 15, 15)">
+                    <i class="bi bi-qr-code text-dark"></i> QR Code
+                </div>
+                <div class="toolbox-item" onclick="addElement('SCHOOL_LOGO', '{{school.logo}}', 'Organization Logo', 12, 12)">
+                    <i class="bi bi-shield-shaded text-primary"></i> Organization Logo
+                </div>
+                <div class="toolbox-item" onclick="addElement('SIGNATURE', '{{school.head_teacher_signature}}', 'Signature', 24, 8)">
+                    <i class="bi bi-pen text-secondary"></i> Authorized Signature
+                </div>
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{school.head_teacher_name}}', 'Dr. Principal', 30, 4, 'NORMAL', 6.5, '#64748B')">
+                    <i class="bi bi-person-badge text-secondary"></i> Signatory Name
+                </div>
+
+                <small class="fw-bold text-muted text-uppercase d-block mt-3 mb-1" style="font-size: 0.7rem;">Static & Graphics</small>
+                <div class="toolbox-item" onclick="addElement('TEXT', '', 'STUDENT ID CARD', 40, 5, 'BOLD', 8.5, '#1E3A8A')">
+                    <i class="bi bi-fonts text-primary"></i> Custom Static Text
+                </div>
+                <div class="toolbox-item" onclick="addElement('RECTANGLE', '', 'Header Box', 50, 10)">
+                    <i class="bi bi-square text-secondary"></i> Rectangle Box
+                </div>
+                <div class="toolbox-item" onclick="addElement('LINE', '', 'Divider', 45, 1)">
+                    <i class="bi bi-dash-lg text-secondary"></i> Divider Line
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Column 2: Center Stage Canvas & Alignment Bar -->
+    <div class="col-lg-7">
+        <!-- Canvas Controls Toolbar -->
+        <div class="card mb-2 shadow-sm border">
+            <div class="card-body py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <!-- Alignment Tools -->
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('left')" title="Align Left"><i class="bi bi-text-left"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('center')" title="Align Center Horizontally"><i class="bi bi-text-center"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('right')" title="Align Right"><i class="bi bi-text-right"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('top')" title="Align Top"><i class="bi bi-align-top"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('middle')" title="Align Middle Vertically"><i class="bi bi-align-middle"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="alignElement('bottom')" title="Align Bottom"><i class="bi bi-align-bottom"></i></button>
+                </div>
+
+                <!-- Grid & Guides Toggles -->
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check form-check-inline form-switch mb-0 small">
+                        <input class="form-check-input" type="checkbox" id="chkShowGrid" onchange="toggleGrid(this.checked)">
+                        <label class="form-check-label" for="chkShowGrid">Grid</label>
+                    </div>
+                    <div class="form-check form-check-inline form-switch mb-0 small">
+                        <input class="form-check-input" type="checkbox" id="chkSnapGrid" checked>
+                        <label class="form-check-label" for="chkSnapGrid">Snap (1mm)</label>
+                    </div>
+                    <div class="form-check form-check-inline form-switch mb-0 small">
+                        <input class="form-check-input" type="checkbox" id="chkShowGuides" onchange="toggleGuides(this.checked)">
+                        <label class="form-check-label" for="chkShowGuides">Guides</label>
+                    </div>
+                </div>
+
+                <!-- Zoom Control -->
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-xs btn-outline-secondary px-2" onclick="adjustScale(-0.5)"><i class="bi bi-zoom-out"></i></button>
+                    <span class="small text-muted fw-bold px-1" id="scaleIndicator">4.5x</span>
+                    <button class="btn btn-xs btn-outline-secondary px-2" onclick="adjustScale(0.5)"><i class="bi bi-zoom-in"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Work Area -->
+        <div class="canvas-work-area">
+            <div id="idCardStage" class="id-card-stage" 
+                 style="width: calc({{ template.width_mm }} * var(--canvas-scale)); height: calc({{ template.height_mm }} * var(--canvas-scale)); background-color: {{ template.background_color }};">
+                
+                <!-- Background Image Layer (Physical mm preservation) -->
+                <img id="bgImgLayer" src="" alt="Background" 
+                     style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; display:none;">
+
+                <!-- Grid Overlay -->
+                <div id="gridOverlay" class="canvas-grid-overlay"></div>
+                <!-- Center Guides -->
+                <div id="guideV" class="guide-v"></div>
+                <div id="guideH" class="guide-h"></div>
+
+                <!-- Canvas Elements are dynamically rendered here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Canvas Footer Stats -->
+        <div class="d-flex justify-content-between align-items-center text-muted small mt-2 px-1">
+            <span>Physical Dimensions: <strong>{{ template.width_mm }} &times; {{ template.height_mm }} mm</strong></span>
+            <span id="bgStatusBadge">
+                {% if template.front_image_dpi %}
+                    Front Artwork: {{ template.front_resolution_w }}&times;{{ template.front_resolution_h }}px ({{ template.front_image_dpi }} DPI)
+                {% else %}
+                    Solid Vector Design
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Column 3: Element Properties & Layers Panel -->
+    <div class="col-lg-3">
+        
+        <!-- Properties Panel -->
+        <div class="card shadow-sm border mb-3">
+            <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold small text-uppercase text-secondary">
+                    <i class="bi bi-sliders text-primary me-1"></i>Element Properties
+                </h6>
+                <button type="button" class="btn btn-xs btn-outline-danger" id="btnDeleteSelected" onclick="deleteSelectedElement()" title="Delete element">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="card-body p-3" id="propertiesPanel">
+                <div class="text-center text-muted py-4" id="noSelectionNotice">
+                    <i class="bi bi-cursor text-secondary fs-3 d-block mb-1"></i>
+                    Select an element on the canvas to configure physical dimensions and typography.
+                </div>
+
+                <!-- Form Controls for Selected Element -->
+                <div id="selectedPropsForm" class="d-none">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Element Label / Key</label>
+                        <input type="text" id="propLabel" class="form-control form-control-sm" oninput="updateProp('label_text', this.value)">
+                    </div>
+
+                    <!-- Physical Coordinates (mm) -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1">X (mm)</label>
+                            <input type="number" step="0.5" id="propX" class="form-control form-control-sm" oninput="updateProp('x_mm', parseFloat(this.value))">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1">Y (mm)</label>
+                            <input type="number" step="0.5" id="propY" class="form-control form-control-sm" oninput="updateProp('y_mm', parseFloat(this.value))">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1">Width (mm)</label>
+                            <input type="number" step="0.5" id="propW" class="form-control form-control-sm" oninput="updateProp('width_mm', parseFloat(this.value))">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1">Height (mm)</label>
+                            <input type="number" step="0.5" id="propH" class="form-control form-control-sm" oninput="updateProp('height_mm', parseFloat(this.value))">
+                        </div>
+                    </div>
+
+                    <!-- Typography Controls (Text / Dynamic fields) -->
+                    <div id="typographyProps">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Font Size (pt)</label>
+                                <input type="number" step="0.5" id="propFontSize" class="form-control form-control-sm" oninput="updateProp('font_size', parseFloat(this.value))">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Text Color</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="color" id="propColorPicker" class="form-control form-control-color p-0 border" onchange="document.getElementById('propColor').value=this.value; updateProp('font_color', this.value)">
+                                    <input type="text" id="propColor" class="form-control" oninput="updateProp('font_color', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-1 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="btnBold" onclick="toggleStyle('bold')"><i class="bi bi-type-bold"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="btnItalic" onclick="toggleStyle('italic')"><i class="bi bi-type-italic"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="btnAlignL" onclick="updateProp('text_align', 'LEFT')"><i class="bi bi-text-left"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="btnAlignC" onclick="updateProp('text_align', 'CENTER')"><i class="bi bi-text-center"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" id="btnAlignR" onclick="updateProp('text_align', 'RIGHT')"><i class="bi bi-text-right"></i></button>
+                        </div>
+
+                        <div class="form-check form-switch mb-2 small">
+                            <input class="form-check-input" type="checkbox" id="propAutoShrink" onchange="updateProp('auto_shrink_text', this.checked)">
+                            <label class="form-check-label" for="propAutoShrink">Auto-Shrink Long Text</label>
+                        </div>
+                    </div>
+
+                    <!-- Photo / Shape Options -->
+                    <div id="photoShapeProps" class="d-none">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Border (mm)</label>
+                                <input type="number" step="0.5" id="propBorderW" class="form-control form-control-sm" oninput="updateProp('border_width', parseFloat(this.value))">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Radius (mm)</label>
+                                <input type="number" step="0.5" id="propBorderR" class="form-control form-control-sm" oninput="updateProp('border_radius', parseFloat(this.value))">
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-2 small" id="divCircularPhoto">
+                            <input class="form-check-input" type="checkbox" id="propCircular" onchange="updateProp('is_circular', this.checked)">
+                            <label class="form-check-label" for="propCircular">Circular Photo Crop</label>
+                        </div>
+                        <div class="mb-2" id="divFillColor">
+                            <label class="form-label small fw-semibold mb-1">Fill Color</label>
+                            <div class="input-group input-group-sm">
+                                <input type="color" id="propFillPicker" class="form-control form-control-color p-0 border" onchange="document.getElementById('propFill').value=this.value; updateProp('fill_color', this.value)">
+                                <input type="text" id="propFill" class="form-control" oninput="updateProp('fill_color', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layer Ordering -->
+                    <div class="border-top pt-2 mt-2">
+                        <label class="form-label small fw-semibold mb-1">Layer Ordering</label>
+                        <div class="btn-group btn-group-sm w-100 mb-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="moveLayer(-1)" title="Move Down"><i class="bi bi-arrow-down"></i> Down</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="moveLayer(1)" title="Move Up"><i class="bi bi-arrow-up"></i> Up</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="duplicateSelectedElement()" title="Duplicate Element"><i class="bi bi-copy"></i> Clone</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layers Stack Panel -->
+        <div class="card shadow-sm border">
+            <div class="card-header bg-white py-2 px-3">
+                <h6 class="mb-0 fw-bold small text-uppercase text-secondary">
+                    <i class="bi bi-layers text-primary me-1"></i>Active Layers
+                </h6>
+            </div>
+            <div class="card-body p-2" id="layersList" style="max-height: 220px; overflow-y: auto;">
+                <!-- Layer items dynamically injected -->
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Validation & Pre-Save Modal -->
+<div class="modal fade" id="validationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="bi bi-shield-check text-primary me-2"></i>Template Validation Report</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="validationReportContent">
+                <!-- Injected via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide(); saveTemplateCanvas();">
+                    Save Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data hydration from backend -->
+<script id="elements-data" type="application/json">
+    {{ elements_json_str|safe }}
+</script>
+
+<script>
+    // System Configurations & Data Hydration
+    const CARD_WIDTH_MM = parseFloat("{{ template.width_mm }}");
+    const CARD_HEIGHT_MM = parseFloat("{{ template.height_mm }}");
+    const FRONT_BG_URL = "{{ template.front_bg_url }}";
+    const BACK_BG_URL = "{{ template.back_bg_url }}";
+    const FRONT_BG_COLOR = "{{ template.background_color|default:'#FFFFFF' }}";
+    const BACK_BG_COLOR = "{{ template.back_background_color|default:'#F8FAFC' }}";
+    const FRONT_FIT_MODE = "{{ template.bg_fit_mode|default:'FILL' }}";
+    const BACK_FIT_MODE = "{{ template.back_bg_fit_mode|default:'FILL' }}";
+    const TEMPLATE_SAVE_URL = "{% url 'template_designer' template.id %}";
+
+    let elements = JSON.parse(document.getElementById('elements-data').textContent || "[]");
+    let currentSide = 'FRONT';
+    let selectedElementId = null;
+    let canvasScale = 4.5; // 1mm = 4.5px
+    let activeStudentData = null;
+    let studentsCache = [];
+
+    // Dragging & Resizing State
+    let isDragging = false;
+    let isResizing = false;
+    let resizeHandle = null;
+    let startMouseX = 0;
+    let startMouseY = 0;
+    let startElX = 0;
+    let startElY = 0;
+    let startElW = 0;
+    let startElH = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initDesigner();
+        fetchStudentPreviewList();
+    });
+
+    function initDesigner() {
+        updateCanvasDimensions();
+        renderCanvas();
+        renderLayers();
+    }
+
+    function switchCanvasSide(side) {
+        currentSide = side;
+        selectedElementId = null;
+        document.getElementById('tabBtnFront').classList.toggle('active', side === 'FRONT');
+        document.getElementById('tabBtnBack').classList.toggle('active', side === 'BACK');
+        renderCanvas();
+        renderLayers();
+        updatePropertiesPanel();
+    }
+
+    function updateCanvasDimensions() {
+        const stage = document.getElementById('idCardStage');
+        document.documentElement.style.setProperty('--canvas-scale', `${canvasScale}px`);
+        stage.style.width = `calc(${CARD_WIDTH_MM} * ${canvasScale}px)`;
+        stage.style.height = `calc(${CARD_HEIGHT_MM} * ${canvasScale}px)`;
+        document.getElementById('scaleIndicator').innerText = `${canvasScale.toFixed(1)}x`;
+
+        // Background update
+        const bgImg = document.getElementById('bgImgLayer');
+        const bgUrl = currentSide === 'FRONT' ? FRONT_BG_URL : BACK_BG_URL;
+        const fitMode = currentSide === 'FRONT' ? FRONT_FIT_MODE : BACK_FIT_MODE;
+        const bgColor = currentSide === 'FRONT' ? FRONT_BG_COLOR : BACK_BG_COLOR;
+
+        stage.style.backgroundColor = bgColor;
+        if (bgUrl) {
+            bgImg.src = bgUrl;
+            bgImg.style.display = 'block';
+            bgImg.style.objectFit = fitMode === 'FIT' ? 'contain' : (fitMode === 'CROP' ? 'cover' : 'fill');
+        } else {
+            bgImg.style.display = 'none';
+        }
+    }
+
+    function adjustScale(delta) {
+        canvasScale = Math.max(2.5, Math.min(8.0, canvasScale + delta));
+        updateCanvasDimensions();
+        renderCanvas();
+    }
+
+    function toggleGrid(show) {
+        document.getElementById('gridOverlay').style.display = show ? 'block' : 'none';
+    }
+
+    function toggleGuides(show) {
+        document.getElementById('guideV').style.display = show ? 'block' : 'none';
+        document.getElementById('guideH').style.display = show ? 'block' : 'none';
+    }
+
+    // Render Canvas Elements
+    function renderCanvas() {
+        const stage = document.getElementById('idCardStage');
+        // Remove existing element nodes
+        const existing = stage.querySelectorAll('.designer-element');
+        existing.forEach(node => node.remove());
+
+        const filtered = elements.filter(e => e.side === currentSide);
+        filtered.sort((a, b) => (a.z_index || 1) - (b.z_index || 1));
+
+        let hasOverflow = false;
+
+        filtered.forEach(el => {
+            const elNode = document.createElement('div');
+            elNode.className = `designer-element ${el.id === selectedElementId ? 'selected' : ''}`;
+            elNode.dataset.id = el.id;
+
+            // Compute pixel dimensions from physical mm
+            const leftPx = el.x_mm * canvasScale;
+            const topPx = el.y_mm * canvasScale;
+            const widthPx = el.width_mm * canvasScale;
+            const heightPx = el.height_mm * canvasScale;
+
+            elNode.style.left = `${leftPx}px`;
+            elNode.style.top = `${topPx}px`;
+            elNode.style.width = `${widthPx}px`;
+            elNode.style.height = `${heightPx}px`;
+            elNode.style.zIndex = el.z_index || 1;
+
+            if (el.opacity !== undefined) {
+                elNode.style.opacity = el.opacity;
+            }
+
+            // Element rendering according to type
+            if (el.element_type === 'RECTANGLE') {
+                elNode.style.backgroundColor = el.fill_color || '#3B82F6';
+                if (el.border_width > 0) {
+                    elNode.style.border = `${el.border_width * (canvasScale / 3)}px solid ${el.border_color || '#000'}`;
+                }
+                if (el.border_radius > 0) {
+                    elNode.style.borderRadius = `${el.border_radius * canvasScale}px`;
+                }
+            } else if (el.element_type === 'LINE') {
+                elNode.style.borderBottom = `${(el.border_width || 1) * (canvasScale / 3)}px solid ${el.border_color || el.font_color || '#94A3B8'}`;
+            } else if (el.element_type === 'STUDENT_PHOTO') {
+                elNode.style.backgroundColor = '#E2E8F0';
+                elNode.style.justifyContent = 'center';
+                if (el.is_circular) {
+                    elNode.style.borderRadius = '50%';
+                } else if (el.border_radius > 0) {
+                    elNode.style.borderRadius = `${el.border_radius * canvasScale}px`;
+                }
+                if (el.border_width > 0) {
+                    elNode.style.border = `${el.border_width * (canvasScale / 3)}px solid ${el.border_color || '#000'}`;
+                }
+
+                if (activeStudentData && activeStudentData.photo_url) {
+                    elNode.innerHTML = `<img src="${activeStudentData.photo_url}" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" alt="Student">`;
+                } else {
+                    elNode.innerHTML = `<i class="bi bi-person-fill text-secondary" style="font-size: ${Math.min(widthPx, heightPx) * 0.6}px;"></i>`;
+                }
+            } else if (el.element_type === 'SCHOOL_LOGO') {
+                elNode.style.justifyContent = 'center';
+                const logoUrl = "{{ school.logo_url }}";
+                if (logoUrl) {
+                    elNode.innerHTML = `<img src="${logoUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" alt="Logo">`;
+                } else {
+                    elNode.innerHTML = `<i class="bi bi-shield-shaded text-primary" style="font-size: ${Math.min(widthPx, heightPx) * 0.7}px;"></i>`;
+                }
+            } else if (el.element_type === 'SIGNATURE') {
+                elNode.style.justifyContent = 'center';
+                const sigUrl = "{{ school.signature_url }}";
+                if (sigUrl) {
+                    elNode.innerHTML = `<img src="${sigUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" alt="Signature">`;
+                } else {
+                    elNode.innerHTML = `<span class="text-secondary fst-italic" style="font-size: calc(${el.font_size || 8}pt * ${canvasScale / 3.78}); font-family: cursive;">Principal Signature</span>`;
+                }
+            } else if (el.element_type === 'QR_CODE') {
+                elNode.style.justifyContent = 'center';
+                elNode.style.backgroundColor = '#FFFFFF';
+                elNode.style.border = '1px solid #0F172A';
+                elNode.innerHTML = `<i class="bi bi-qr-code text-dark" style="font-size: ${Math.min(widthPx, heightPx) * 0.8}px;"></i>`;
+            } else {
+                // TEXT or DYNAMIC_FIELD
+                elNode.style.color = el.font_color || '#0F172A';
+                elNode.style.fontWeight = el.font_weight === 'BOLD' ? 'bold' : 'normal';
+                elNode.style.fontStyle = el.font_style === 'ITALIC' ? 'italic' : 'normal';
+                elNode.style.justifyContent = el.text_align === 'CENTER' ? 'center' : (el.text_align === 'RIGHT' ? 'flex-end' : 'flex-start');
+
+                let displayText = resolveDynamicField(el);
+
+                // Auto-shrink text or overflow detection
+                let ptSize = el.font_size || 8;
+                let fontSizePx = ptSize * (canvasScale / 3.2);
+                elNode.style.fontSize = `${fontSizePx}px`;
+
+                const span = document.createElement('span');
+                span.innerText = displayText;
+                span.style.whiteSpace = 'nowrap';
+                elNode.appendChild(span);
+
+                // Check string overflow
+                setTimeout(() => {
+                    if (span.scrollWidth > widthPx + 2) {
+                        if (el.auto_shrink_text !== false) {
+                            // Shrink font size dynamically
+                            let currentPt = ptSize;
+                            while (currentPt > 5.0 && span.scrollWidth > widthPx) {
+                                currentPt -= 0.5;
+                                span.style.fontSize = `${currentPt * (canvasScale / 3.2)}px`;
+                            }
+                        } else {
+                            hasOverflow = true;
+                            elNode.style.outline = '1px solid #DC2626';
+                        }
+                    }
+                }, 10);
+            }
+
+            // Append 8 resize handles for the selected element
+            ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'].forEach(pos => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle handle-${pos}`;
+                handle.dataset.handle = pos;
+                elNode.appendChild(handle);
+            });
+
+            // Element Click & MouseDown handlers
+            elNode.addEventListener('mousedown', (e) => onElementMouseDown(e, el.id));
+            stage.appendChild(elNode);
+        });
+
+        const overflowBanner = document.getElementById('overflowWarningBanner');
+        if (hasOverflow) {
+            overflowBanner.classList.remove('d-none');
+        } else {
+            overflowBanner.classList.add('d-none');
+        }
+    }
+
+    function resolveDynamicField(el) {
+        if (el.element_type === 'TEXT') {
+            return el.label_text || 'Text';
+        }
+        const key = (el.dynamic_field_key || el.label_text || '').toLowerCase();
+        if (!activeStudentData) {
+            if (key.includes('student.name')) return "Ram Sharma";
+            if (key.includes('student.student_id')) return "STU-001";
+            if (key.includes('student.roll_no')) return "01";
+            if (key.includes('student.class')) return "Grade 10 - A";
+            if (key.includes('school.name')) return "{{ school.name|default:'Greenwood Academy' }}";
+            if (key.includes('valid_until')) return "31 Dec 2026";
+            return el.label_text || el.dynamic_field_key || "Dynamic Field";
+        }
+
+        if (key.includes('student.name')) return activeStudentData.full_name;
+        if (key.includes('student.student_id')) return activeStudentData.student_id;
+        if (key.includes('student.roll_no')) return String(activeStudentData.roll_number);
+        if (key.includes('student.class')) return `${activeStudentData.class_name} - ${activeStudentData.section_name}`;
+        if (key.includes('student.dob')) return activeStudentData.dob || '2008-01-01';
+        if (key.includes('student.gender')) return activeStudentData.gender || 'Male';
+        if (key.includes('student.blood_group')) return activeStudentData.blood_group || 'O+';
+        if (key.includes('student.guardian_name')) return activeStudentData.guardian_name || 'Guardian';
+        if (key.includes('student.guardian_phone')) return activeStudentData.guardian_phone || '555-0100';
+        if (key.includes('student.address')) return activeStudentData.address || 'Kathmandu, Nepal';
+        if (key.includes('school.name')) return "{{ school.name|default:'Greenwood Academy' }}";
+        if (key.includes('valid_until')) return "31 Dec 2026";
+        return el.label_text || el.dynamic_field_key || "Data";
+    }
+
+    // Interactive Drag & Resize Logic
+    function onElementMouseDown(e, elementId) {
+        e.stopPropagation();
+        selectedElementId = elementId;
+        renderCanvas();
+        renderLayers();
+        updatePropertiesPanel();
+
+        const el = elements.find(item => item.id === elementId);
+        if (!el) return;
+
+        if (e.target.classList.contains('resize-handle')) {
+            isResizing = true;
+            resizeHandle = e.target.dataset.handle;
+        } else {
+            isDragging = true;
+        }
+
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startElX = el.x_mm;
+        startElY = el.y_mm;
+        startElW = el.width_mm;
+        startElH = el.height_mm;
+
+        document.addEventListener('mousemove', onCanvasMouseMove);
+        document.addEventListener('mouseup', onCanvasMouseUp);
+    }
+
+    function onCanvasMouseMove(e) {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+
+        const deltaX_mm = (e.clientX - startMouseX) / canvasScale;
+        const deltaY_mm = (e.clientY - startMouseY) / canvasScale;
+        const snapEnabled = document.getElementById('chkSnapGrid').checked;
+        const snapStep = 1.0; // 1mm snap
+
+        function snapVal(val) {
+            return snapEnabled ? Math.round(val / snapStep) * snapStep : parseFloat(val.toFixed(1));
+        }
+
+        if (isDragging) {
+            let newX = snapVal(startElX + deltaX_mm);
+            let newY = snapVal(startElY + deltaY_mm);
+
+            // Boundary constraints
+            newX = Math.max(0, Math.min(CARD_WIDTH_MM - el.width_mm, newX));
+            newY = Math.max(0, Math.min(CARD_HEIGHT_MM - el.height_mm, newY));
+
+            el.x_mm = newX;
+            el.y_mm = newY;
+            syncPropertiesInputs();
+            renderCanvasFast(el);
+        } else if (isResizing) {
+            let newW = startElW;
+            let newH = startElH;
+            let newX = startElX;
+            let newY = startElY;
+
+            if (resizeHandle.includes('e')) newW = snapVal(startElW + deltaX_mm);
+            if (resizeHandle.includes('s')) newH = snapVal(startElH + deltaY_mm);
+            if (resizeHandle.includes('w')) {
+                const diff = snapVal(deltaX_mm);
+                newW = startElW - diff;
+                newX = startElX + diff;
+            }
+            if (resizeHandle.includes('n')) {
+                const diff = snapVal(deltaY_mm);
+                newH = startElH - diff;
+                newY = startElY + diff;
+            }
+
+            if (newW >= 4 && newH >= 2) {
+                el.width_mm = newW;
+                el.height_mm = newH;
+                el.x_mm = Math.max(0, newX);
+                el.y_mm = Math.max(0, newY);
+                syncPropertiesInputs();
+                renderCanvasFast(el);
+            }
+        }
+    }
+
+    function renderCanvasFast(el) {
+        const node = document.querySelector(`.designer-element[data-id="${el.id}"]`);
+        if (node) {
+            node.style.left = `${el.x_mm * canvasScale}px`;
+            node.style.top = `${el.y_mm * canvasScale}px`;
+            node.style.width = `${el.width_mm * canvasScale}px`;
+            node.style.height = `${el.height_mm * canvasScale}px`;
+        }
+    }
+
+    function onCanvasMouseUp() {
+        isDragging = false;
+        isResizing = false;
+        document.removeEventListener('mousemove', onCanvasMouseMove);
+        document.removeEventListener('mouseup', onCanvasMouseUp);
+        renderCanvas();
+    }
+
+    // Properties Inspector & Synchronization
+    function updatePropertiesPanel() {
+        const el = elements.find(item => item.id === selectedElementId);
+        const notice = document.getElementById('noSelectionNotice');
+        const form = document.getElementById('selectedPropsForm');
+
+        if (!el) {
+            notice.classList.remove('d-none');
+            form.classList.add('d-none');
+            return;
+        }
+
+        notice.classList.add('d-none');
+        form.classList.remove('d-none');
+
+        document.getElementById('propLabel').value = el.label_text || el.dynamic_field_key || '';
+        document.getElementById('propX').value = el.x_mm;
+        document.getElementById('propY').value = el.y_mm;
+        document.getElementById('propW').value = el.width_mm;
+        document.getElementById('propH').value = el.height_mm;
+
+        const isTextType = ['TEXT', 'DYNAMIC_FIELD'].includes(el.element_type);
+        document.getElementById('typographyProps').classList.toggle('d-none', !isTextType);
+
+        if (isTextType) {
+            document.getElementById('propFontSize').value = el.font_size || 8;
+            document.getElementById('propColor').value = el.font_color || '#0F172A';
+            document.getElementById('propColorPicker').value = (el.font_color && el.font_color.startsWith('#')) ? el.font_color : '#0F172A';
+            document.getElementById('btnBold').classList.toggle('active', el.font_weight === 'BOLD');
+            document.getElementById('btnItalic').classList.toggle('active', el.font_style === 'ITALIC');
+            document.getElementById('propAutoShrink').checked = el.auto_shrink_text !== false;
+        }
+
+        const isPhotoOrShape = ['STUDENT_PHOTO', 'RECTANGLE', 'LINE'].includes(el.element_type);
+        document.getElementById('photoShapeProps').classList.toggle('d-none', !isPhotoOrShape);
+
+        if (isPhotoOrShape) {
+            document.getElementById('propBorderW').value = el.border_width || 0;
+            document.getElementById('propBorderR').value = el.border_radius || 0;
+            document.getElementById('divCircularPhoto').classList.toggle('d-none', el.element_type !== 'STUDENT_PHOTO');
+            document.getElementById('propCircular').checked = !!el.is_circular;
+            document.getElementById('divFillColor').classList.toggle('d-none', el.element_type !== 'RECTANGLE');
+            document.getElementById('propFill').value = el.fill_color || '#3B82F6';
+            document.getElementById('propFillPicker').value = (el.fill_color && el.fill_color.startsWith('#')) ? el.fill_color : '#3B82F6';
+        }
+    }
+
+    function syncPropertiesInputs() {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+        document.getElementById('propX').value = el.x_mm;
+        document.getElementById('propY').value = el.y_mm;
+        document.getElementById('propW').value = el.width_mm;
+        document.getElementById('propH').value = el.height_mm;
+    }
+
+    function updateProp(key, value) {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+        el[key] = value;
+        renderCanvas();
+        renderLayers();
+    }
+
+    function toggleStyle(style) {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+        if (style === 'bold') {
+            el.font_weight = el.font_weight === 'BOLD' ? 'NORMAL' : 'BOLD';
+        } else if (style === 'italic') {
+            el.font_style = el.font_style === 'ITALIC' ? 'NORMAL' : 'ITALIC';
+        }
+        updatePropertiesPanel();
+        renderCanvas();
+    }
+
+    // Toolbox: Add New Element
+    function addElement(type, dynamicKey, label, widthMm, heightMm, fontWeight='NORMAL', fontSize=8.0, color='#0F172A') {
+        const newId = 'temp_' + Date.now();
+        const centerX = Math.max(0, (CARD_WIDTH_MM - widthMm) / 2);
+        const centerY = Math.max(0, (CARD_HEIGHT_MM - heightMm) / 2);
+        const maxZ = elements.reduce((max, e) => Math.max(max, e.z_index || 1), 0);
+
+        const newEl = {
+            id: newId,
+            side: currentSide,
+            element_type: type,
+            dynamic_field_key: dynamicKey,
+            label_text: label,
+            x_mm: parseFloat(centerX.toFixed(1)),
+            y_mm: parseFloat(centerY.toFixed(1)),
+            width_mm: widthMm,
+            height_mm: heightMm,
+            font_size: fontSize,
+            font_weight: fontWeight,
+            font_style: 'NORMAL',
+            font_color: color,
+            text_align: 'LEFT',
+            fill_color: type === 'RECTANGLE' ? '#2563EB' : '',
+            border_color: '#CBD5E1',
+            border_width: type === 'STUDENT_PHOTO' ? 0.5 : 0,
+            border_radius: type === 'STUDENT_PHOTO' ? 2.0 : 0,
+            opacity: 1.0,
+            is_circular: false,
+            auto_shrink_text: true,
+            text_wrap: false,
+            z_index: maxZ + 1
+        };
+
+        elements.push(newEl);
+        selectedElementId = newId;
+        renderCanvas();
+        renderLayers();
+        updatePropertiesPanel();
+    }
+
+    function deleteSelectedElement() {
+        if (!selectedElementId) return;
+        elements = elements.filter(item => item.id !== selectedElementId);
+        selectedElementId = null;
+        renderCanvas();
+        renderLayers();
+        updatePropertiesPanel();
+    }
+
+    function duplicateSelectedElement() {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+        const clone = JSON.parse(JSON.stringify(el));
+        clone.id = 'temp_' + Date.now();
+        clone.x_mm = Math.min(CARD_WIDTH_MM - clone.width_mm, clone.x_mm + 2);
+        clone.y_mm = Math.min(CARD_HEIGHT_MM - clone.height_mm, clone.y_mm + 2);
+        clone.z_index = (clone.z_index || 1) + 1;
+        elements.push(clone);
+        selectedElementId = clone.id;
+        renderCanvas();
+        renderLayers();
+        updatePropertiesPanel();
+    }
+
+    // Layers Management
+    function renderLayers() {
+        const list = document.getElementById('layersList');
+        list.innerHTML = '';
+        const filtered = elements.filter(e => e.side === currentSide);
+        filtered.sort((a, b) => (b.z_index || 1) - (a.z_index || 1));
+
+        filtered.forEach(el => {
+            const item = document.createElement('div');
+            item.className = `layer-item ${el.id === selectedElementId ? 'active' : ''}`;
+            const desc = el.label_text || el.dynamic_field_key || el.element_type;
+            item.innerHTML = `
+                <span class="text-truncate" style="max-width: 140px;">
+                    <i class="bi bi-grip-vertical text-muted me-1"></i> ${desc}
+                </span>
+                <span class="badge bg-light text-secondary border">z:${el.z_index || 1}</span>
+            `;
+            item.onclick = () => {
+                selectedElementId = el.id;
+                renderCanvas();
+                renderLayers();
+                updatePropertiesPanel();
+            };
+            list.appendChild(item);
+        });
+    }
+
+    function moveLayer(delta) {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+        el.z_index = Math.max(1, (el.z_index || 1) + delta);
+        renderCanvas();
+        renderLayers();
+    }
+
+    // Alignment Toolbar
+    function alignElement(direction) {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (!el) return;
+
+        if (direction === 'left') el.x_mm = 2.0;
+        if (direction === 'center') el.x_mm = parseFloat(((CARD_WIDTH_MM - el.width_mm) / 2).toFixed(1));
+        if (direction === 'right') el.x_mm = parseFloat((CARD_WIDTH_MM - el.width_mm - 2.0).toFixed(1));
+        if (direction === 'top') el.y_mm = 2.0;
+        if (direction === 'middle') el.y_mm = parseFloat(((CARD_HEIGHT_MM - el.height_mm) / 2).toFixed(1));
+        if (direction === 'bottom') el.y_mm = parseFloat((CARD_HEIGHT_MM - el.height_mm - 2.0).toFixed(1));
+
+        syncPropertiesInputs();
+        renderCanvas();
+    }
+
+    // Student Preview Data Fetching & Switcher
+    function fetchStudentPreviewList() {
+        fetch("{% url 'template_preview_students' template.id %}")
+            .then(res => res.json())
+            .then(data => {
+                studentsCache = data.students || [];
+            })
+            .catch(err => console.error("Failed to load student preview list:", err));
+    }
+
+    function onStudentPreviewChange(val) {
+        if (val === 'SAMPLE') {
+            activeStudentData = null;
+        } else if (val === 'LONG_NAME') {
+            activeStudentData = studentsCache.find(s => s.id === -1) || {
+                full_name: 'Ram Prasad Bahadur Sharma',
+                student_id: 'STU-9999',
+                roll_number: 99,
+                class_name: 'Grade 10',
+                section_name: 'A',
+                photo_url: null
+            };
+        } else {
+            activeStudentData = studentsCache.find(s => String(s.id) === String(val)) || null;
+        }
+        renderCanvas();
+    }
+
+    function previewRandomStudent() {
+        if (studentsCache.length === 0) return;
+        const rand = studentsCache[Math.floor(Math.random() * studentsCache.length)];
+        document.getElementById('studentPreviewSelect').value = rand.id;
+        activeStudentData = rand;
+        renderCanvas();
+    }
+
+    function autoFixOverflow() {
+        const el = elements.find(item => item.id === selectedElementId);
+        if (el) {
+            el.width_mm = Math.min(CARD_WIDTH_MM - el.x_mm, el.width_mm + 10);
+            el.auto_shrink_text = true;
+            syncPropertiesInputs();
+            renderCanvas();
+        }
+    }
+
+    // Template Validation Checks
+    function validateTemplateModal() {
+        const report = runValidation();
+        const content = document.getElementById('validationReportContent');
+
+        let html = '';
+        if (report.errors.length === 0 && report.warnings.length === 0) {
+            html = `
+                <div class="alert alert-success d-flex align-items-center mb-0">
+                    <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+                    <div>
+                        <h6 class="fw-bold mb-0">Template Layout Perfect!</h6>
+                        <p class="small mb-0">No boundary clipping, overlaps, or minimum size issues detected.</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            if (report.errors.length > 0) {
+                html += '<h6 class="text-danger fw-bold mb-2"><i class="bi bi-x-circle me-1"></i>Critical Issues:</h6><ul class="text-danger small">';
+                report.errors.forEach(err => html += `<li>${err}</li>`);
+                html += '</ul>';
+            }
+            if (report.warnings.length > 0) {
+                html += '<h6 class="text-warning-emphasis fw-bold mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Quality Warnings:</h6><ul class="text-secondary small">';
+                report.warnings.forEach(warn => html += `<li>${warn}</li>`);
+                html += '</ul>';
+            }
+        }
+
+        content.innerHTML = html;
+        const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+        modal.show();
+    }
+
+    function runValidation() {
+        const errors = [];
+        const warnings = [];
+
+        // 1. Boundary & Overlap checks
+        const qrList = [];
+        elements.forEach(el => {
+            const lbl = el.label_text || el.dynamic_field_key || el.element_type;
+            if (el.x_mm < 0 || el.y_mm < 0 || (el.x_mm + el.width_mm) > CARD_WIDTH_MM + 0.1 || (el.y_mm + el.height_mm) > CARD_HEIGHT_MM + 0.1) {
+                warnings.push(`'${lbl}' extends outside physical card boundaries.`);
+            }
+
+            if (el.element_type === 'QR_CODE') {
+                if (Math.min(el.width_mm, el.height_mm) < 14.0) {
+                    warnings.push(`QR Code (${el.width_mm}x${el.height_mm}mm) is smaller than the recommended 15mm minimum.`);
+                }
+                qrList.push(el);
+            }
+        });
+
+        // 2. QR Code unobstructed check
+        elements.forEach(el => {
+            if (['QR_CODE', 'RECTANGLE', 'LINE'].includes(el.element_type)) return;
+            qrList.forEach(qr => {
+                if (el.side === qr.side && (el.z_index || 1) > (qr.z_index || 1)) {
+                    const overlap = !(el.x_mm + el.width_mm <= qr.x_mm || el.x_mm >= qr.x_mm + qr.width_mm || el.y_mm + el.height_mm <= qr.y_mm || el.y_mm >= qr.y_mm + qr.height_mm);
+                    if (overlap) {
+                        errors.push(`Element '${el.label_text || el.element_type}' overlaps the QR Code, making it unreadable.`);
+                    }
+                }
+            });
+        });
+
+        // 3. Essential fields check
+        const hasName = elements.some(e => (e.dynamic_field_key || '').includes('student.name'));
+        if (!hasName) {
+            warnings.push("Template does not contain a Student Name field.");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Save Template to Backend
+    function saveTemplateCanvas() {
+        const validation = runValidation();
+        if (validation.errors.length > 0) {
+            alert("Please resolve critical validation issues before saving:\n" + validation.errors.join("\n"));
+            return;
+        }
+
+        const payload = {
+            action: 'save_canvas_elements',
+            elements: elements
+        };
+
+        fetch(TEMPLATE_SAVE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                let msg = data.message;
+                if (data.warnings && data.warnings.length > 0) {
+                    msg += "\n\nAdvisory Warnings:\n- " + data.warnings.join("\n- ");
+                }
+                alert(msg);
+            } else {
+                alert("Save Failed: " + (data.error || "Unknown server error"));
+            }
+        })
+        .catch(err => {
+            alert("Network Error saving template: " + err);
+        });
+    }
+
+    function getCsrfToken() {
+        const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+        return cookie ? cookie.split('=')[1] : '';
+    }
+</script>
+{% endblock %}

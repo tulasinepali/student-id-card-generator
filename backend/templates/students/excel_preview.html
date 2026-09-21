@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Dry-Run Preview{% endblock %}
+{% block page_heading %}Excel Import Validation & Dry-Run Preview{% endblock %}
+
+{% block content %}
+<!-- Validation Summary Banner -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 bg-white">
+            <span class="small text-muted text-uppercase fw-semibold">Total Records Found</span>
+            <h3 class="fw-bold mb-0 text-dark">{{ results.total_found }}</h3>
+            <small class="text-secondary">Rows analyzed from Excel file</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 bg-white border-start border-success border-4">
+            <span class="small text-muted text-uppercase fw-semibold">Valid Records</span>
+            <h3 class="fw-bold mb-0 text-success">{{ results.valid_count }}</h3>
+            <small class="text-success fw-semibold">Ready for database import</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 bg-white border-start border-danger border-4">
+            <span class="small text-muted text-uppercase fw-semibold">Invalid Records</span>
+            <h3 class="fw-bold mb-0 text-danger">{{ results.invalid_count }}</h3>
+            <small class="text-danger fw-semibold">Blocked due to validation errors</small>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Actions Bar -->
+<div class="card bg-white p-3 mb-4 d-flex flex-row justify-content-between align-items-center shadow-sm">
+    <div>
+        <h6 class="fw-bold mb-1">Confirm Import Actions</h6>
+        <p class="small text-muted mb-0">
+            {% if results.valid_count > 0 %}
+                You can import the <strong>{{ results.valid_count }} valid records</strong> into the database immediately. Invalid records will be safely skipped.
+            {% else %}
+                No valid records found in the uploaded file. Please resolve errors in your file and try again.
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <form method="POST" action="{% url 'excel_import' %}">
+            {% csrf_token %}
+            <input type="hidden" name="step" value="cancel">
+            <button type="submit" class="btn btn-outline-secondary">Cancel</button>
+        </form>
+
+        {% if results.valid_count > 0 %}
+            <form method="POST" action="{% url 'excel_import' %}">
+                {% csrf_token %}
+                <input type="hidden" name="step" value="confirm">
+                <button type="submit" class="btn btn-success fw-semibold px-4">
+                    <i class="bi bi-check-circle me-1"></i> Import {{ results.valid_count }} Valid Records
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Errors Section (if any) -->
+{% if results.invalid_count > 0 %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Validation Errors ({{ results.invalid_count }} Rows)</h6>
+        <span class="badge bg-white text-danger">Action Required</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+                <tr>
+                    <th width="80">Excel Row</th>
+                    <th>Student ID</th>
+                    <th>Roll</th>
+                    <th>Full Name</th>
+                    <th>Detected Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.invalid_records %}
+                <tr>
+                    <td class="fw-bold text-danger">Row #{{ item.row_index }}</td>
+                    <td><code>{{ item.data.student_id|default:"(Empty)" }}</code></td>
+                    <td>{{ item.data.roll_number|default:"(Empty)" }}</td>
+                    <td class="fw-semibold">{{ item.data.full_name|default:"(Empty)" }}</td>
+                    <td>
+                        <ul class="mb-0 ps-3 text-danger fw-medium">
+                            {% for err in item.errors %}
+                                <li>{{ err }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Valid Records Preview -->
+<div class="card">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-check2-all text-success me-2"></i>Valid Records Preview ({{ results.valid_count }})</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-custom align-middle mb-0" style="font-size: 0.85rem;">
+            <thead>
+                <tr>
+                    <th>Excel Row</th>
+                    <th>Student ID</th>
+                    <th>Roll</th>
+                    <th>Full Name</th>
+                    <th>Class & Section</th>
+                    <th>Gender</th>
+                    <th>Date of Birth</th>
+                    <th>Guardian Phone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.valid_records %}
+                <tr>
+                    <td class="small text-muted">Row #{{ item.row_index }}</td>
+                    <td class="fw-bold"><code>{{ item.student_id }}</code></td>
+                    <td>#{{ item.roll_number }}</td>
+                    <td class="fw-semibold text-dark">{{ item.full_name }}</td>
+                    <td>{{ item.class_name }} &mdash; Sec {{ item.section_name }}</td>
+                    <td>{{ item.gender }}</td>
+                    <td>{{ item.date_of_birth|default:"-" }}</td>
+                    <td>{{ item.guardian_phone|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">No valid rows available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

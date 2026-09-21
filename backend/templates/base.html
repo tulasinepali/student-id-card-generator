@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - {{ school.name|default:"Organization ID Management" }}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-navy: #1E3A8A;
+            --primary-blue: #2563EB;
+            --bg-canvas: #F8FAFC;
+        }
+        body {
+            background-color: var(--bg-canvas);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: #0F172A;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #0F172A;
+            color: #E2E8F0;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .sidebar-brand {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid #1E293B;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .sidebar-nav {
+            padding: 1rem 0;
+            list-style: none;
+            margin: 0;
+        }
+        .sidebar-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748B;
+            padding: 0.75rem 1.25rem 0.25rem;
+            font-weight: 700;
+        }
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.25rem;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-item a:hover {
+            color: #FFFFFF;
+            background-color: #1E293B;
+        }
+        .nav-item a.active {
+            color: #FFFFFF;
+            background-color: var(--primary-blue);
+            font-weight: 600;
+        }
+        .main-wrapper {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .top-navbar {
+            background-color: #FFFFFF;
+            border-bottom: 1px solid #E2E8F0;
+            padding: 0.75rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .content-area {
+            padding: 1.75rem;
+            flex: 1;
+        }
+        .card {
+            border: 1px solid #E2E8F0;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .table-custom th {
+            background-color: #F1F5F9;
+            color: #475569;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-weight: 600;
+            border-bottom: 1px solid #CBD5E1;
+        }
+        .badge-verified { background-color: #DCFCE7; color: #166534; font-weight: 600; }
+        .badge-submitted { background-color: #FEF3C7; color: #92400E; font-weight: 600; }
+        .badge-pending { background-color: #F1F5F9; color: #475569; font-weight: 600; }
+        .badge-rejected { background-color: #FEE2E2; color: #991B1B; font-weight: 600; }
+        .badge-active { background-color: #DBEAFE; color: #1E40AF; font-weight: 600; }
+        .badge-revoked { background-color: #FEE2E2; color: #991B1B; font-weight: 600; }
+        .badge-expired { background-color: #FFEDD5; color: #9A3412; font-weight: 600; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            {% if school and school.logo %}
+                <img src="{{ school.logo.url }}" alt="Logo" width="36" height="36" class="rounded object-fit-contain bg-white p-1">
+            {% else %}
+                <div class="rounded bg-primary text-white d-flex align-items-center justify-content-center" style="width:36px; height:36px; font-weight:bold;">
+                    ID
+                </div>
+            {% endif %}
+            <div class="overflow-hidden">
+                <div class="text-white fw-bold text-truncate" style="font-size: 0.95rem;">{{ school.name|default:"Apex International" }}</div>
+                <div class="text-secondary" style="font-size: 0.75rem;">Organization ID Management</div>
+            </div>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li class="sidebar-heading">Core</li>
+            <li class="nav-item">
+                <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-fill"></i> Dashboard
+                </a>
+            </li>
+
+            {% if is_studio %}
+            <li class="sidebar-heading">Client Organizations</li>
+            <li class="nav-item">
+                <a href="{% url 'client_management' %}" class="{% if request.resolver_match.url_name in 'client_management client_edit' %}active{% endif %}">
+                    <i class="bi bi-buildings"></i> Client Organizations
+                    <span class="badge bg-primary ms-auto">{{ studio_clients|length }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'client_create' %}" class="{% if request.resolver_match.url_name == 'client_create' %}active{% endif %}">
+                    <i class="bi bi-plus-circle"></i> Add Organization
+                </a>
+            </li>
+            {% endif %}
+
+            <li class="sidebar-heading">Academic & Staff</li>
+            <li class="nav-item">
+                <a href="{% url 'academic_years' %}" class="{% if request.resolver_match.url_name == 'academic_years' %}active{% endif %}">
+                    <i class="bi bi-calendar3"></i> Academic Years
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'classes_sections' %}" class="{% if request.resolver_match.url_name == 'classes_sections' %}active{% endif %}">
+                    <i class="bi bi-diagram-3"></i> Classes & Sections
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'teachers_list' %}" class="{% if request.resolver_match.url_name == 'teachers_list' %}active{% endif %}">
+                    <i class="bi bi-person-badge"></i> Teacher Accounts
+                </a>
+            </li>
+
+            <li class="sidebar-heading">Student Management</li>
+            <li class="nav-item">
+                <a href="{% url 'students_list' %}" class="{% if request.resolver_match.url_name in 'students_list student_detail student_create student_edit' %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i> Students Directory
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'excel_import' %}" class="{% if request.resolver_match.url_name == 'excel_import' %}active{% endif %}">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Excel Import
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'bulk_photos' %}" class="{% if request.resolver_match.url_name == 'bulk_photos' %}active{% endif %}">
+                    <i class="bi bi-images"></i> Bulk Photo ZIP
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'verification_queue' %}" class="{% if request.resolver_match.url_name == 'verification_queue' %}active{% endif %}">
+                    <i class="bi bi-patch-check"></i> Verification Queue
+                </a>
+            </li>
+
+            <li class="sidebar-heading">ID Cards & Printing</li>
+            <li class="nav-item">
+                <a href="{% url 'templates_list' %}" class="{% if request.resolver_match.url_name in 'templates_list template_designer' %}active{% endif %}">
+                    <i class="bi bi-palette"></i> Card Templates
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'print_center' %}" class="{% if request.resolver_match.url_name == 'print_center' %}active{% endif %}">
+                    <i class="bi bi-printer"></i> Print & PDF Center
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'cards_history' %}" class="{% if request.resolver_match.url_name in 'cards_history revoke_card' %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i> Card History & Revoke
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+        <!-- Top Navbar -->
+        <header class="top-navbar">
+            <div class="d-flex align-items-center gap-3">
+                <h5 class="m-0 fw-bold">{% block page_heading %}Dashboard{% endblock %}</h5>
+
+                {% if is_studio %}
+                <!-- Studio Multi-Client Switcher Dropdown -->
+                <div class="dropdown ms-2">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle d-flex align-items-center gap-2 fw-medium shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-buildings text-primary"></i>
+                        <span>
+                            {% if active_client %}
+                                <strong>{{ active_client.name }}</strong>
+                            {% else %}
+                                <em>All Client Organizations</em>
+                            {% endif %}
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu shadow-lg border-0 py-2" style="min-width: 280px;">
+                        <li><h6 class="dropdown-header text-uppercase text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 0.05em;">Client Organization Scope</h6></li>
+                        <li>
+                            <a class="dropdown-item py-2 d-flex justify-content-between align-items-center {% if not active_client %}active{% endif %}" href="{% url 'switch_client' 0 %}">
+                                <span><i class="bi bi-globe me-2 text-primary"></i> All Organizations (Global View)</span>
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        {% for clt in studio_clients %}
+                        <li>
+                            <a class="dropdown-item py-2 d-flex justify-content-between align-items-center {% if active_client and active_client.id == clt.id %}active{% endif %}" href="{% url 'switch_client' clt.id %}">
+                                <span class="text-truncate" style="max-width: 180px;"><i class="bi bi-building me-2 text-secondary"></i> {{ clt.name }}</span>
+                                <span class="badge bg-light text-secondary border rounded-pill">{{ clt.total_students }} stu</span>
+                            </a>
+                        </li>
+                        {% empty %}
+                        <li><span class="dropdown-item text-muted small py-2">No client organizations registered yet</span></li>
+                        {% endfor %}
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item text-primary fw-medium py-2" href="{% url 'client_create' %}">
+                                <i class="bi bi-plus-circle me-2"></i> Add Organization
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-secondary small py-2" href="{% url 'client_management' %}">
+                                <i class="bi bi-grid-3x3-gap me-2"></i> Client Organizations Hub
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                    <i class="bi bi-shield-check"></i> {{ request.user.get_role_display|default:"Administrator" }}
+                </span>
+                <span class="text-secondary small fw-medium">
+                    {{ request.user.get_full_name|default:request.user.username }}
+                </span>
+                <a href="{% url 'admin_logout' %}" class="btn btn-sm btn-outline-danger" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
+        </header>
+
+        <!-- Messages / Alerts -->
+        {% if messages %}
+            <div class="px-4 pt-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Content Area -->
+        <main class="content-area">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

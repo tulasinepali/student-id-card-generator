@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Organization Settings & Branding{% endblock %}
+{% block page_heading %}Organization Settings & Digital Signatures{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-building text-primary me-2"></i>Institutional Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Organization Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ school.name }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Short Name / Code</label>
+                            <input type="text" name="short_name" class="form-control" value="{{ school.short_name }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Address / Street</label>
+                            <input type="text" name="address" class="form-control" value="{{ school.address }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Municipality / City</label>
+                            <input type="text" name="municipality" class="form-control" value="{{ school.municipality }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">District</label>
+                            <input type="text" name="district" class="form-control" value="{{ school.district }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Province / State</label>
+                            <input type="text" name="province" class="form-control" value="{{ school.province }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Country</label>
+                            <input type="text" name="country" class="form-control" value="{{ school.country }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Contact Phone</label>
+                            <input type="text" name="phone" class="form-control" value="{{ school.phone }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input type="email" name="email" class="form-control" value="{{ school.email }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Website URL</label>
+                            <input type="url" name="website" class="form-control" value="{{ school.website }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Head Teacher & Signature Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-pen text-primary me-2"></i>Head Teacher / Principal Endorsement</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Head Teacher / Principal Full Name</label>
+                            <input type="text" name="head_teacher_name" class="form-control" value="{{ school.head_teacher_name }}" required>
+                            <div class="form-text">Available dynamically on ID templates as <code>&#123;&#123;school.head_teacher_name&#125;&#125;</code></div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Digital Signature (Transparent PNG Recommended)</label>
+                            <input type="file" name="head_teacher_signature" class="form-control" accept="image/png,image/jpeg,image/webp">
+                            <div class="form-text">Available on ID templates as <code>&#123;&#123;school.head_teacher_signature&#125;&#125;</code></div>
+                        </div>
+
+                        <!-- Signature Live Preview -->
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-secondary">Active Signature Preview:</label>
+                            <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-center" style="min-height: 100px;">
+                                {% if school.head_teacher_signature %}
+                                    <img src="{{ school.head_teacher_signature.url }}" alt="Signature" style="max-height: 80px; max-width: 250px;">
+                                {% else %}
+                                    <span class="text-muted small">No signature uploaded yet.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Default ID Validity & QR Settings -->
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-qr-code-scan text-primary me-2"></i>ID Card Validity & QR Code Defaults</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Default Card Validity Duration (Days)</label>
+                            <input type="number" name="default_id_validity_days" class="form-control" value="{{ school.default_id_validity_days }}" min="30" max="1825">
+                            <div class="form-text">Applied when generating cards if dates are not overridden.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Default QR Error Correction Level</label>
+                            <select name="default_qr_correction_level" class="form-select">
+                                <option value="L" {% if school.default_qr_correction_level == 'L' %}selected{% endif %}>L - Low (7% error recovery)</option>
+                                <option value="M" {% if school.default_qr_correction_level == 'M' %}selected{% endif %}>M - Medium (15% error recovery - Recommended)</option>
+                                <option value="Q" {% if school.default_qr_correction_level == 'Q' %}selected{% endif %}>Q - Quartile (25% error recovery)</option>
+                                <option value="H" {% if school.default_qr_correction_level == 'H' %}selected{% endif %}>H - High (30% error recovery)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mb-5">
+                <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                    <i class="bi bi-save me-1"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Side card for Logo & Dynamic Fields info -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-image text-primary me-2"></i>Official Organization Emblem</h6>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3 p-3 border rounded bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
+                    {% if school.logo %}
+                        <img src="{{ school.logo.url }}" alt="Logo" style="max-height: 130px; max-width: 100%;" class="object-fit-contain">
+                    {% else %}
+                        <div class="text-muted small">No logo uploaded</div>
+                    {% endif %}
+                </div>
+                <p class="small text-muted mb-2">Used automatically on ID Card templates and printable documents.</p>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" name="logo" class="form-control form-control-sm mb-2" accept="image/*" required>
+                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-upload"></i> Upload New Logo
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-code-square text-secondary me-2"></i>Dynamic Template Variables</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item"><code>&#123;&#123;school.name&#125;&#125;</code> - Organization Name</li>
+                    <li class="list-group-item"><code>&#123;&#123;school.logo&#125;&#125;</code> - Institutional Emblem</li>
+                    <li class="list-group-item"><code>&#123;&#123;school.head_teacher_name&#125;&#125;</code> - Principal Name</li>
+                    <li class="list-group-item"><code>&#123;&#123;school.head_teacher_signature&#125;&#125;</code> - Signature</li>
+                    <li class="list-group-item"><code>&#123;&#123;valid_from&#125;&#125;</code> - Card Issue Date</li>
+                    <li class="list-group-item"><code>&#123;&#123;valid_until&#125;&#125;</code> - Card Expiry Date</li>
+                    <li class="list-group-item"><code>&#123;&#123;qr_code&#125;&#125;</code> - Secure Verification QR</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends "platform_admin/base_platform.html" %}
+
+{% block title %}Support Inspection: {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Top Support Inspection Banner -->
+    <div class="card border-warning bg-warning bg-opacity-10 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center p-3 fs-3">
+                        <i class="bi bi-tools"></i>
+                    </div>
+                    <div>
+                        <div class="badge bg-warning text-dark fw-bold mb-1">
+                            <i class="bi bi-shield-fill-exclamation me-1"></i> SECURE SUPPORT SESSION ACTIVE
+                        </div>
+                        <h4 class="fw-bold mb-1">{{ org.name }}</h4>
+                        <div class="text-muted small">
+                            Org ID: <span class="font-monospace fw-bold text-dark">{{ org.org_id }}</span> &bull; 
+                            Primary Admin: <span class="fw-semibold">{{ org.primary_admin.username|default:"None" }}</span> &bull; 
+                            Plan: <span class="badge bg-primary">{{ org.subscription.plan.name|default:"None" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'dashboard' %}" target="_blank" class="btn btn-warning btn-sm fw-bold">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Open Tenant Console
+                    </a>
+                    <a href="{% url 'platform_admin:organization_detail' org.pk %}" class="btn btn-outline-dark btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Org Dossier
+                    </a>
+                    <a href="{% url 'platform_admin:support_exit' %}" class="btn btn-danger btn-sm fw-bold">
+                        <i class="bi bi-box-arrow-right me-1"></i> Terminate Support Session
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Tabs -->
+    <ul class="nav nav-tabs mb-4" id="inspectionTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-semibold" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                <i class="bi bi-speedometer2 me-1"></i> Diagnostic Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+                <i class="bi bi-people me-1"></i> Staff Accounts ({{ users.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button" role="tab">
+                <i class="bi bi-mortarboard me-1"></i> Academic Structure ({{ classes.count }} Classes)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">
+                <i class="bi bi-card-heading me-1"></i> ID Card Templates ({{ templates.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">
+                <i class="bi bi-person-lines-fill me-1"></i> Sample Student Data
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="inspectionTabContent">
+        <!-- 1. Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card card-kpi mb-4">
+                        <div class="card-header bg-white py-3 border-bottom">
+                            <h6 class="mb-0 fw-bold">Institutional Parameters</h6>
+                        </div>
+                        <div class="card-body p-4">
+                            <table class="table table-sm table-borderless small mb-0">
+                                <tbody>
+                                    <tr>
+                                        <th class="text-muted" style="width: 40%;">Official Name</th>
+                                        <td class="fw-semibold">{{ org.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Type</th>
+                                        <td>{{ org.get_org_type_display }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Status</th>
+                                        <td>
+                                            {% if org.status == 'ACTIVE' %}<span class="badge badge-status-active">Active</span>
+                                            {% elif org.status == 'TRIAL' %}<span class="badge badge-status-trial">Trial</span>
+                                            {% elif org.status == 'SUSPENDED' %}<span class="badge badge-status-suspended">Suspended</span>
+                                            {% else %}<span class="badge badge-status-expired">Expired</span>{% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Official Email</th>
+                                        <td>{{ org.email|default:"—" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Phone Number</th>
+                                        <td>{{ org.phone|default:"—" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Campus Address</th>
+                                        <td>{{ org.address|default:"—" }}, {{ org.municipality|default:"" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Database Link ID</th>
+                                        <td>Entity ID: {{ org.school_id|default:"Unlinked" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="card card-kpi mb-4">
+                        <div class="card-header bg-white py-3 border-bottom">
+                            <h6 class="mb-0 fw-bold">Support Troubleshooting Quick Actions</h6>
+                        </div>
+                        <div class="card-body p-4">
+                            <p class="text-muted small mb-3">Common administrative assistance actions executed during support tickets:</p>
+                            <div class="d-grid gap-2">
+                                {% if org.primary_admin %}
+                                <a href="{% url 'platform_admin:user_reset_password' org.primary_admin.pk %}" class="btn btn-outline-warning text-dark text-start btn-sm py-2">
+                                    <i class="bi bi-key-fill me-2 text-warning"></i> Reset Primary Admin Password ({{ org.primary_admin.username }})
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'platform_admin:organization_subscription' org.pk %}" class="btn btn-outline-primary text-start btn-sm py-2">
+                                    <i class="bi bi-arrow-repeat me-2 text-primary"></i> Extend or Renew Organization Subscription Plan
+                                </a>
+                                <a href="{% url 'platform_admin:organization_edit' org.pk %}" class="btn btn-outline-secondary text-start btn-sm py-2">
+                                    <i class="bi bi-pencil-square me-2"></i> Update Institutional Profile / Contact Coordinates
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Users Tab -->
+        <div class="tab-pane fade" id="users" role="tabpanel">
+            <div class="card card-kpi">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Role</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td class="font-monospace fw-bold">{{ u.username }}</td>
+                                <td>{{ u.get_full_name|default:"—" }}</td>
+                                <td><span class="badge bg-secondary">{{ u.role }}</span></td>
+                                <td>{{ u.email|default:"—" }}</td>
+                                <td>
+                                    {% if u.is_active %}<span class="badge bg-success">Active</span>
+                                    {% else %}<span class="badge bg-danger">Disabled</span>{% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'platform_admin:user_reset_password' u.pk %}" class="btn btn-xs btn-outline-warning btn-sm">
+                                        Reset Password
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No staff users found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Academic Structure Tab -->
+        <div class="tab-pane fade" id="academic" role="tabpanel">
+            <div class="card card-kpi">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Configured Classes & Sections</h6>
+                </div>
+                <div class="card-body p-4">
+                    {% if classes %}
+                    <div class="row g-3">
+                        {% for c in classes %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="p-3 border rounded bg-light">
+                                <h6 class="fw-bold text-dark mb-1">{{ c.name }}</h6>
+                                <div class="text-muted small">Numeric: {{ c.numeric_value|default:"—" }}</div>
+                                <div class="text-muted small mt-2">
+                                    Sections:
+                                    {% for s in c.sections.all %}
+                                    <span class="badge bg-white text-dark border">{{ s.name }}</span>
+                                    {% empty %}
+                                    <span class="text-muted">None</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No classes configured or multi-tenant database partitioned.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. ID Card Templates Tab -->
+        <div class="tab-pane fade" id="templates" role="tabpanel">
+            <div class="card card-kpi">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Configured ID Card Templates</h6>
+                </div>
+                <div class="card-body p-4">
+                    {% if templates %}
+                    <div class="row g-3">
+                        {% for t in templates %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold text-dark mb-0">{{ t.name }}</h6>
+                                    {% if t.is_default %}<span class="badge bg-primary">Default</span>{% endif %}
+                                </div>
+                                <div class="text-muted small mb-1">Dimensions: {{ t.width_mm }}mm &times; {{ t.height_mm }}mm</div>
+                                <div class="text-muted small">Orientation: {{ t.layout_orientation|title }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No ID card templates found for this organization.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Sample Students Tab -->
+        <div class="tab-pane fade" id="students" role="tabpanel">
+            <div class="card card-kpi">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Sample Enrolled Students (Read-Only Diagnostic View)</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Full Name</th>
+                                <th>Class</th>
+                                <th>Roll No</th>
+                                <th>Photo</th>
+                                <th>Verification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for st in sample_students %}
+                            <tr>
+                                <td class="font-monospace fw-bold text-primary">{{ st.student_id }}</td>
+                                <td class="fw-semibold">{{ st.full_name }}</td>
+                                <td>{{ st.class_level.name|default:"—" }}</td>
+                                <td>{{ st.roll_number|default:"—" }}</td>
+                                <td>
+                                    {% if st.photo %}
+                                    <span class="badge bg-success-subtle text-success">Uploaded</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">Missing</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if st.verification_status == 'VERIFIED' %}
+                                    <span class="badge bg-success">Verified</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">{{ st.verification_status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No student records enrolled yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

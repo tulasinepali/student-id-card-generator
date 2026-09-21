@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Photo Upload{% endblock %}
+{% block page_heading %}Bulk Student Photo Management (ZIP Archive){% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-zip text-primary me-2"></i>Upload Photo ZIP Archive</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="p-3 bg-light rounded mb-3">
+                        <h6 class="small fw-bold text-dark mb-2">Target Scope (Optional Filter)</h6>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Academic Year</label>
+                                <select name="academic_year" class="form-select form-select-sm">
+                                    <option value="">-- All Sessions --</option>
+                                    {% for y in years %}
+                                        <option value="{{ y.id }}" {% if y.is_active %}selected{% endif %}>{{ y.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Class Level</label>
+                                <select name="class_level" class="form-select form-select-sm">
+                                    <option value="">-- All Classes --</option>
+                                    {% for c in classes %}
+                                        <option value="{{ c.id }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Section</label>
+                                <select name="section" class="form-select form-select-sm">
+                                    <option value="">-- All Sections --</option>
+                                    {% for c in classes %}
+                                        <optgroup label="{{ c.name }}">
+                                            {% for s in c.sections.all %}
+                                                <option value="{{ s.id }}">{{ c.name }} - Sec {{ s.name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold">ZIP File of Photos *</label>
+                        <input type="file" name="photo_zip" class="form-control" accept=".zip" required>
+                        <div class="form-text">
+                            Archive containing photos named as <code>&lt;StudentID&gt;.jpg</code> (e.g. <code>STU8001.jpg</code>, <code>STU8002.png</code>). Max 100MB.
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                            <i class="bi bi-cloud-arrow-up me-1"></i> Extract & Match Photos
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Rules & Help -->
+    <div class="col-lg-5">
+        <div class="card p-3 bg-white mb-3">
+            <h6 class="fw-bold mb-2"><i class="bi bi-card-image text-primary me-1"></i>Photo Processing Pipeline</h6>
+            <ul class="small text-muted ps-3 mb-0">
+                <li class="mb-1"><strong>Filename matching:</strong> Images are matched by comparing the base filename (excluding extension) with the institutional <code>student_id</code>.</li>
+                <li class="mb-1"><strong>Automatic 3:4 cropping:</strong> Standardizes all uploaded student photos to the standard ID card portrait ratio without face stretching.</li>
+                <li class="mb-1"><strong>Compression & optimization:</strong> Saves high-clarity JPEG files while maintaining small storage footprints.</li>
+                <li><strong>Safe uploads:</strong> If an image fails or is corrupt, existing student photos remain untouched.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

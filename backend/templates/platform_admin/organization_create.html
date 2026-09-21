@@ -1,0 +1,195 @@
+{% extends "platform_admin/base_platform.html" %}
+
+{% block title %}Add New Organization{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 text-muted small">
+                    <li class="breadcrumb-item"><a href="{% url 'platform_admin:organizations_list' %}" class="text-decoration-none">Organizations</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">New Organization</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold mb-0">Create New Organization</h4>
+            <p class="text-muted small mb-0">Provision an organization tenant, assign its primary administrator, and set up subscription billing.</p>
+        </div>
+        <a href="{% url 'platform_admin:organizations_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Organizations
+        </a>
+    </div>
+
+    <form method="POST" action="{% url 'platform_admin:organization_create' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="row g-4">
+            <!-- Left Column: Org Details & Primary Admin -->
+            <div class="col-lg-8">
+                <!-- 1. Organization Information -->
+                <div class="card card-kpi mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <i class="bi bi-buildings-fill text-primary fs-5"></i>
+                        <h6 class="mb-0 fw-bold">1. Organization Profile</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label small fw-semibold">Organization Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. Kathmandu Model Academy" value="{{ form_data.name|default:'' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Organization Type <span class="text-danger">*</span></label>
+                                <select name="org_type" class="form-select" required>
+                                    {% for code, label in org_types %}
+                                    <option value="{{ code }}" {% if form_data.org_type == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Short Name / Code</label>
+                                <input type="text" name="short_name" class="form-control text-uppercase" placeholder="e.g. KMA" maxlength="20" value="{{ form_data.short_name|default:'' }}">
+                                <div class="form-text">Used on compact badges and ID headers.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Official Email</label>
+                                <input type="email" name="email" class="form-control" placeholder="info@school.edu.np" value="{{ form_data.email|default:'' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Phone Number</label>
+                                <input type="text" name="phone" class="form-control" placeholder="+977-01-XXXXXXX" value="{{ form_data.phone|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Website URL</label>
+                                <input type="url" name="website" class="form-control" placeholder="https://example.edu.np" value="{{ form_data.website|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Official Logo</label>
+                                <input type="file" name="logo" class="form-control" accept="image/*">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Street Address / Campus Location</label>
+                                <input type="text" name="address" class="form-control" placeholder="Ward No. 4, Shantinagar" value="{{ form_data.address|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Municipality / Local Body</label>
+                                <input type="text" name="municipality" class="form-control" placeholder="Kathmandu Metropolitan" value="{{ form_data.municipality|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">District</label>
+                                <input type="text" name="district" class="form-control" placeholder="Kathmandu" value="{{ form_data.district|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Province</label>
+                                <input type="text" name="province" class="form-control" placeholder="Bagmati Province" value="{{ form_data.province|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Country</label>
+                                <input type="text" name="country" class="form-control" value="{{ form_data.country|default:'Nepal' }}">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="form-check form-switch p-3 bg-light rounded border">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="usesMobileAppSwitch" name="uses_mobile_app" {% if not form_data or form_data.uses_mobile_app %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold" for="usesMobileAppSwitch">
+                                        <i class="bi bi-phone text-primary me-1"></i> Does this Organization use the Mobile App?
+                                    </label>
+                                    <div class="form-text text-muted ps-0 mt-1">
+                                        <strong>If enabled:</strong> Teachers verify students via the mobile app before cards are printable.<br>
+                                        <strong>If disabled:</strong> No mobile verification required. Students with photos are immediately verified and eligible for ID card printing.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Primary Organization Admin Account -->
+                <div class="card card-kpi mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <i class="bi bi-person-fill-lock text-success fs-5"></i>
+                        <h6 class="mb-0 fw-bold">2. Primary Administrator Account</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted small mb-3">This account will have full administrative rights over the organization's school portal.</p>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Admin Full Name <span class="text-danger">*</span></label>
+                                <input type="text" name="admin_name" class="form-control" placeholder="e.g. Ramesh Sharma" value="{{ form_data.admin_name|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Admin Username <span class="text-danger">*</span></label>
+                                <input type="text" name="admin_username" class="form-control" placeholder="e.g. admin_kma" value="{{ form_data.admin_username|default:'' }}" required autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Admin Email Address <span class="text-danger">*</span></label>
+                                <input type="email" name="admin_email" class="form-control" placeholder="admin@kma.edu.np" value="{{ form_data.admin_email|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Admin Contact Phone</label>
+                                <input type="text" name="admin_phone" class="form-control" placeholder="+977-98XXXXXXXX" value="{{ form_data.admin_phone|default:'' }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-semibold">Initial Password <span class="text-danger">*</span></label>
+                                <input type="password" name="admin_password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password">
+                                <div class="form-text">The administrator can change this upon their first login.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Subscription & Plan -->
+            <div class="col-lg-4">
+                <div class="card card-kpi mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <i class="bi bi-credit-card-2-front-fill text-warning fs-5"></i>
+                        <h6 class="mb-0 fw-bold">3. Subscription Tier</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Select Plan <span class="text-danger">*</span></label>
+                            <select name="plan" class="form-select" required>
+                                {% for p in plans %}
+                                <option value="{{ p.id }}" {% if form_data.plan == p.id|stringformat:"s" or p.code == 'STANDARD' %}selected{% endif %}>
+                                    {{ p.name }} (NPR {{ p.price_per_year }}/yr &bull; Up to {{ p.max_students }} Students)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Initial Status</label>
+                            <select name="sub_status" class="form-select">
+                                <option value="ACTIVE" {% if form_data.sub_status == 'ACTIVE' or not form_data.sub_status %}selected{% endif %}>ACTIVE (Full Access)</option>
+                                <option value="TRIAL" {% if form_data.sub_status == 'TRIAL' %}selected{% endif %}>TRIAL (Free Evaluation)</option>
+                                <option value="SUSPENDED" {% if form_data.sub_status == 'SUSPENDED' %}selected{% endif %}>SUSPENDED (Locked)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subscription Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ form_data.start_date|default:default_start }}">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-semibold">Subscription Expiry Date</label>
+                            <input type="date" name="expiry_date" class="form-control" value="{{ form_data.expiry_date|default:default_expiry }}">
+                        </div>
+
+                        <hr>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary fw-bold py-2">
+                                <i class="bi bi-check2-circle me-1"></i> Provision Organization
+                            </button>
+                            <a href="{% url 'platform_admin:organizations_list' %}" class="btn btn-outline-secondary py-2">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

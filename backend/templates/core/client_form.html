@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Edit Client Organization - {{ client.name }}{% else %}Add New Client Organization{% endif %}{% endblock %}
+{% block page_heading %}{% if is_edit %}Edit Client Organization{% else %}Add Client Organization{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">
+                    {% if is_edit %}
+                    <i class="bi bi-pencil-square text-primary me-2"></i>Edit {{ client.name }}
+                    {% else %}
+                    <i class="bi bi-building-add text-primary me-2"></i>Add New Client Organization
+                    {% endif %}
+                </h4>
+                <p class="text-secondary small mb-0">
+                    Client organizations are completely isolated workspaces. Students and cards prepared under this client will use this organization's logo and authorized signatory.
+                </p>
+            </div>
+            <a href="{% url 'client_management' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Organizations
+            </a>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-bank text-primary me-2"></i>Institutional Identity & Profile</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Organization Full Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ client.name|default:'' }}" placeholder="e.g. Apex Academy / Everest Studio" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Short Name / Abbreviation</label>
+                            <input type="text" name="short_name" class="form-control" value="{{ client.short_name|default:'' }}" placeholder="e.g. DSS">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Institution Type</label>
+                            <select name="client_type" class="form-select">
+                                <option value="SCHOOL" {% if client.client_type == 'SCHOOL' %}selected{% endif %}>School (K-12)</option>
+                                <option value="COLLEGE" {% if client.client_type == 'COLLEGE' %}selected{% endif %}>College / Campus</option>
+                                <option value="UNIVERSITY" {% if client.client_type == 'UNIVERSITY' %}selected{% endif %}>University</option>
+                                <option value="COMPANY" {% if client.client_type == 'COMPANY' %}selected{% endif %}>Commercial Company</option>
+                                <option value="CORPORATE_AGENCY" {% if client.client_type == 'CORPORATE_AGENCY' %}selected{% endif %}>Corporate / NGO</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Phone Number</label>
+                            <input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+977-9800000000">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}" placeholder="info@school.edu.np">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Campus Address / Street</label>
+                            <input type="text" name="address" class="form-control" value="{{ client.address|default:'' }}" placeholder="e.g. Ward No. 4, Damak">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Municipality / City</label>
+                            <input type="text" name="municipality" class="form-control" value="{{ client.municipality|default:'' }}" placeholder="Damak Municipality">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">District</label>
+                            <input type="text" name="district" class="form-control" value="{{ client.district|default:'' }}" placeholder="Jhapa">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Province / State</label>
+                            <input type="text" name="province" class="form-control" value="{{ client.province|default:'' }}" placeholder="Koshi Province">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Country</label>
+                            <input type="text" name="country" class="form-control" value="{{ client.country|default:'Nepal' }}">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Website URL</label>
+                            <input type="url" name="website" class="form-control" value="{{ client.website|default:'' }}" placeholder="https://school.edu.np">
+                        </div>
+
+                        <!-- Mobile App Integration Setting -->
+                        <div class="col-12 mt-3">
+                            <div class="form-check form-switch p-3 bg-light rounded border">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="usesMobileAppSwitch" name="uses_mobile_app" {% if not is_edit or client.uses_mobile_app %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="usesMobileAppSwitch">
+                                    <i class="bi bi-phone text-primary me-1"></i> Does this Client Organization use the Mobile App?
+                                </label>
+                                <div class="form-text text-muted ps-0 mt-1">
+                                    <strong>If enabled:</strong> Teachers verify students via the mobile app before cards are printable.<br>
+                                    <strong>If disabled:</strong> No mobile verification required. Students with photos are immediately verified and eligible for ID card printing.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-shield-check text-primary me-2"></i>Institutional Branding & Signatures (Rendered on ID Cards)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- Organization Logo -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold d-block">Client Organization Logo</label>
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                {% if client.logo %}
+                                <img src="{{ client.logo.url }}" alt="Logo" class="rounded border p-1" style="width: 70px; height: 70px; object-fit: contain;">
+                                {% else %}
+                                <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-image fs-3"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg">
+                                    <div class="form-text">Transparent PNG recommended. Renders on all ID cards for this client.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Authorized Signature -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold d-block">Authorized Digital Signature (Principal / Head)</label>
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                {% if client.authorized_signature %}
+                                <img src="{{ client.authorized_signature.url }}" alt="Signature" class="rounded border p-1" style="width: 100px; height: 50px; object-fit: contain;">
+                                {% else %}
+                                <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted" style="width: 100px; height: 50px;">
+                                    <i class="bi bi-pen fs-4"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <input type="file" name="authorized_signature" class="form-control" accept="image/png,image/jpeg">
+                                    <div class="form-text">Clean transparent background PNG for crisp printing.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Signatory Full Name</label>
+                            <input type="text" name="signatory_name" class="form-control" value="{{ client.signatory_name|default:'Principal' }}" placeholder="e.g. Prof. Ram Shrestha">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Signatory Official Title</label>
+                            <input type="text" name="signatory_title" class="form-control" value="{{ client.signatory_title|default:'Principal' }}" placeholder="e.g. Principal / Director / Manager">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                {% if is_edit %}
+                <a href="{% url 'client_delete' client.id %}" class="btn btn-outline-danger px-3">
+                    <i class="bi bi-trash me-1"></i> Delete Organization
+                </a>
+                {% else %}
+                <div></div>
+                {% endif %}
+                <div class="d-flex gap-2">
+                    <a href="{% url 'client_management' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                        <i class="bi bi-check-circle me-1"></i> {% if is_edit %}Save Changes{% else %}Add Organization{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

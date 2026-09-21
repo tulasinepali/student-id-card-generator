@@ -1,0 +1,92 @@
+{% extends "platform_admin/base_platform.html" %}
+
+{% block title %}Create Organization Administrator{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 text-muted small">
+                    <li class="breadcrumb-item"><a href="{% url 'platform_admin:users_list' %}" class="text-decoration-none">Users</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Create Org Admin</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold mb-0">Create Organization Administrator</h4>
+            <p class="text-muted small mb-0">Provision an administrator account scoped to a specific school or college organization.</p>
+        </div>
+        <a href="{% url 'platform_admin:users_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Return to Users
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <form method="POST" action="{% url 'platform_admin:admin_create' %}">
+                {% csrf_token %}
+
+                <div class="card card-kpi">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <i class="bi bi-person-fill-gear text-primary fs-5"></i>
+                        <h6 class="mb-0 fw-bold">Administrator Details</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-4">
+                            <label class="form-label small fw-semibold">Target Organization <span class="text-danger">*</span></label>
+                            <select name="organization" class="form-select" required>
+                                <option value="">-- Choose Organization --</option>
+                                {% for o in organizations %}
+                                <option value="{{ o.id }}" {% if initial_org_id == o.id|stringformat:"s" or form_data.organization == o.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ o.name }} ({{ o.org_id }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">The new user will manage students, teachers, and ID cards exclusively for this organization.</div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Administrator Full Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. Maya Devi Thapa" value="{{ form_data.name|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Username <span class="text-danger">*</span></label>
+                                <input type="text" name="username" class="form-control" placeholder="e.g. admin_maya" value="{{ form_data.username|default:'' }}" required autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" placeholder="maya@school.edu.np" value="{{ form_data.email|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Phone Number</label>
+                                <input type="text" name="phone" class="form-control" placeholder="+977-98XXXXXXXX" value="{{ form_data.phone|default:'' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Temporary Password <span class="text-danger">*</span></label>
+                                <input type="password" name="password" class="form-control" placeholder="At least 6 characters" minlength="6" required autocomplete="new-password">
+                                <div class="form-text">Share this credential securely with the institutional administrator.</div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info small d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-check fs-5 text-info"></i>
+                            <div>
+                                Organization administrators can only access the organization portal and student/ID card features. They <strong>cannot</strong> access the Platform Super Admin site.
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex align-items-center justify-content-end gap-2">
+                            <a href="{% url 'platform_admin:users_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary fw-bold px-4">
+                                <i class="bi bi-person-check me-1"></i> Create Administrator Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

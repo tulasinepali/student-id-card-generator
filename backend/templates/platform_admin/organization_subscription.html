@@ -1,0 +1,185 @@
+{% extends "platform_admin/base_platform.html" %}
+
+{% block title %}Manage Subscription - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 text-muted small">
+                    <li class="breadcrumb-item"><a href="{% url 'platform_admin:organizations_list' %}" class="text-decoration-none">Organizations</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'platform_admin:organization_detail' org.pk %}" class="text-decoration-none">{{ org.org_id }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Subscription Plan</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold mb-0">Subscription & Billing Management</h4>
+            <p class="text-muted small mb-0">Update subscription plan tier, extend renewal dates, and manage account status for <strong>{{ org.name }}</strong>.</p>
+        </div>
+        <a href="{% url 'platform_admin:organization_detail' org.pk %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Return to Organization
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Form -->
+        <div class="col-lg-7">
+            <form method="POST" action="{% url 'platform_admin:organization_subscription' org.pk %}">
+                {% csrf_token %}
+
+                <div class="card card-kpi mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <i class="bi bi-credit-card-fill text-primary fs-5"></i>
+                        <h6 class="mb-0 fw-bold">Plan Configuration</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subscription Plan Tier <span class="text-danger">*</span></label>
+                            <select name="plan" class="form-select" required>
+                                {% for p in plans %}
+                                <option value="{{ p.id }}" {% if sub and sub.plan.id == p.id %}selected{% endif %}>
+                                    {{ p.name }} (NPR {{ p.price_per_year }}/yr &bull; Up to {{ p.max_students }} Students, {{ p.max_staff }} Staff)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Account & Subscription Status <span class="text-danger">*</span></label>
+                            <select name="status" class="form-select" required>
+                                <option value="ACTIVE" {% if sub and sub.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Full Organization Access)</option>
+                                <option value="TRIAL" {% if sub and sub.status == 'TRIAL' %}selected{% endif %}>TRIAL (Free Evaluation)</option>
+                                <option value="SUSPENDED" {% if sub and sub.status == 'SUSPENDED' %}selected{% endif %}>SUSPENDED (Access Blocked)</option>
+                                <option value="EXPIRED" {% if sub and sub.status == 'EXPIRED' %}selected{% endif %}>EXPIRED (Grace Period / Locked)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subscription Expiry Date <span class="text-danger">*</span></label>
+                            <input type="date" id="expiry_date" name="expiry_date" class="form-control" value="{{ sub.expiry_date|date:'Y-m-d'|default:'' }}" required>
+                            
+                            <!-- Quick Extension Helpers -->
+                            <div class="mt-2 d-flex gap-2">
+                                <span class="small text-muted align-self-center">Quick Extend:</span>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="addDays(30)">+30 Days</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="addDays(180)">+6 Months</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="addDays(365)">+1 Year</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-semibold">Billing Notes & Audit Memo</label>
+                            <textarea name="notes" class="form-control" rows="4" placeholder="Record payment invoice reference, discount details, or renewal history...">{{ sub.notes|default:'' }}</textarea>
+                            <div class="form-text">Visible only to Super Admins.</div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex align-items-center justify-content-end gap-2">
+                            <a href="{% url 'platform_admin:organization_detail' org.pk %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary fw-bold px-4">
+                                <i class="bi bi-check2-circle me-1"></i> Update Subscription
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Right Side: Current Status Dossier -->
+        <div class="col-lg-5">
+            <div class="card card-kpi mb-4">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Current Subscription State</h6>
+                </div>
+                <div class="card-body p-4">
+                    {% if sub %}
+                    <div class="p-3 bg-light rounded mb-3">
+                        <div class="small text-muted">Currently Active Plan</div>
+                        <h4 class="fw-bold text-primary mb-1">{{ sub.plan.name }}</h4>
+                        <div class="small text-muted">
+                            Status: 
+                            {% if sub.status == 'ACTIVE' %}<span class="badge badge-status-active">Active</span>
+                            {% elif sub.status == 'TRIAL' %}<span class="badge badge-status-trial">Trial</span>
+                            {% elif sub.status == 'SUSPENDED' %}<span class="badge badge-status-suspended">Suspended</span>
+                            {% else %}<span class="badge badge-status-expired">Expired</span>{% endif %}
+                        </div>
+                    </div>
+
+                    <table class="table table-sm table-borderless small mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 45%;">Annual Fee</th>
+                                <td class="fw-bold">NPR {{ sub.plan.price_per_year }} / year</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Student Limit</th>
+                                <td>Up to {{ sub.plan.max_students }} students</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Staff Limit</th>
+                                <td>Up to {{ sub.plan.max_staff }} users</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Client Limit</th>
+                                <td>Up to {{ sub.plan.max_clients }} clients</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Start Date</th>
+                                <td>{{ sub.start_date }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Expiry Date</th>
+                                <td class="fw-bold">{{ sub.expiry_date }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-exclamation-circle fs-2 text-warning d-block mb-2"></i>
+                        <span>No subscription record found. Fill the form to initialize.</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Available Plan Tiers Reference -->
+            <div class="card card-kpi">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Platform Plan Catalog</h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="list-group list-group-flush">
+                        {% for p in plans %}
+                        <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold text-dark">{{ p.name }}</div>
+                                <div class="text-muted small">Max {{ p.max_students }} students &bull; {{ p.max_staff }} staff &bull; {{ p.max_clients }} clients</div>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">
+                                NPR {{ p.price_per_year }}/yr
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addDays(days) {
+    const input = document.getElementById('expiry_date');
+    let current = input.value ? new Date(input.value) : new Date();
+    if (isNaN(current.getTime())) current = new Date();
+    current.setDate(current.getDate() + days);
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const dd = String(current.getDate()).padStart(2, '0');
+    input.value = `${yyyy}-${mm}-${dd}`;
+}
+</script>
+{% endblock %}

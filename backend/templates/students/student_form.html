@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if student %}Edit {{ student.full_name }}{% else %}Add Student{% endif %}{% endblock %}
+{% block page_heading %}{% if student %}Edit Student: {{ student.full_name }}{% else %}Enroll New Student{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-person text-primary me-2"></i>Institutional & Academic Identifiers</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if is_studio %}
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-primary">
+                                <i class="bi bi-buildings-fill me-1"></i> Client Organization *
+                            </label>
+                            <select name="client_id" class="form-select border-primary bg-light-subtle" required>
+                                <option value="">-- Select Client Organization --</option>
+                                {% for cl in studio_clients %}
+                                    <option value="{{ cl.id }}" {% if selected_client_id == cl.id|stringformat:"s" or student.client_id == cl.id or student.client.id == cl.id %}selected{% endif %}>
+                                        {{ cl.name }} ({{ cl.client_code }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Students enrolled under studio/press accounts are mapped to this client institution.</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Student ID *</label>
+                            <input type="text" name="student_id" class="form-control" value="{{ student.student_id|default:'' }}" placeholder="e.g. STU8001" required>
+                            <div class="form-text">Unique institutional identifier.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Roll Number *</label>
+                            <input type="number" name="roll_number" class="form-control" value="{{ student.roll_number|default:'' }}" min="1" required>
+                            <div class="form-text">Unique within class/section.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Academic Year *</label>
+                            <select name="academic_year" class="form-select" required>
+                                {% for y in years %}
+                                    <option value="{{ y.id }}" {% if student.academic_year_id == y.id or y.is_active and not student %}selected{% endif %}>{{ y.name }}{% if y.is_active %} (Active){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Class Level *</label>
+                            <select name="class_level" id="id_class_level" class="form-select" required>
+                                <option value="">-- Select Class --</option>
+                                {% for c in classes %}
+                                    <option value="{{ c.id }}" {% if student.class_level_id == c.id or prefill_class == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Section *</label>
+                            <select name="section" id="id_section" class="form-select" required>
+                                <option value="">-- Select Section --</option>
+                                {% for c in classes %}
+                                    <optgroup label="{{ c.name }}" data-class-id="{{ c.id }}">
+                                        {% for s in c.sections.all %}
+                                            <option value="{{ s.id }}" data-class-id="{{ c.id }}" {% if student.section_id == s.id or prefill_section == s.id|stringformat:"s" %}selected{% endif %}>Sec {{ s.name }} ({{ c.name }})</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-person-badge text-primary me-2"></i>Personal Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Full Legal Name *</label>
+                            <input type="text" name="full_name" class="form-control" value="{{ student.full_name|default:'' }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Date of Birth</label>
+                            <input type="date" name="date_of_birth" class="form-control" value="{{ student.date_of_birth|date:'Y-m-d'|default:'' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Gender *</label>
+                            <select name="gender" class="form-select" required>
+                                <option value="MALE" {% if student.gender == 'MALE' %}selected{% endif %}>Male</option>
+                                <option value="FEMALE" {% if student.gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                                <option value="OTHER" {% if student.gender == 'OTHER' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Blood Group</label>
+                            <input type="text" name="blood_group" class="form-control" value="{{ student.blood_group|default:'' }}" placeholder="e.g. O+">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Enrollment Status</label>
+                            <select name="status" class="form-select">
+                                <option value="ACTIVE" {% if student.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                                <option value="INACTIVE" {% if student.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                                <option value="TRANSFERRED" {% if student.status == 'TRANSFERRED' %}selected{% endif %}>Transferred</option>
+                                <option value="GRADUATED" {% if student.status == 'GRADUATED' %}selected{% endif %}>Graduated</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Student Photograph</label>
+                            <input type="file" name="photo" class="form-control" accept="image/*">
+                            <div class="form-text">Crops to 3:4 ID portrait ratio.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Residential Address</label>
+                            <textarea name="address" class="form-control" rows="2">{{ student.address|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-telephone text-primary me-2"></i>Guardian & Emergency Contact</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Guardian Full Name</label>
+                            <input type="text" name="guardian_name" class="form-control" value="{{ student.guardian_name|default:'' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Guardian Phone</label>
+                            <input type="text" name="guardian_phone" class="form-control" value="{{ student.guardian_phone|default:'' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Emergency Contact</label>
+                            <input type="text" name="emergency_contact" class="form-control" value="{{ student.emergency_contact|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mb-5">
+                <a href="{% url 'students_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                    <i class="bi bi-save me-1"></i> {% if student %}Save Changes{% else %}Create Student{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const classSelect = document.getElementById('id_class_level');
+    const sectionSelect = document.getElementById('id_section');
+    if (!classSelect || !sectionSelect) return;
+
+    const allOptions = Array.from(sectionSelect.querySelectorAll('option[data-class-id]'));
+    const initialSectionId = "{{ student.section_id|default:prefill_section|default:'' }}";
+
+    function filterSections() {
+        const selectedClassId = classSelect.value;
+        const currentSelectedSection = sectionSelect.value || initialSectionId;
+        
+        sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+        
+        if (!selectedClassId) {
+            sectionSelect.disabled = true;
+            return;
+        }
+        
+        sectionSelect.disabled = false;
+        const matchedOptions = allOptions.filter(opt => opt.getAttribute('data-class-id') === selectedClassId);
+        
+        matchedOptions.forEach(opt => {
+            const clone = opt.cloneNode(true);
+            if (clone.value === currentSelectedSection) {
+                clone.selected = true;
+            }
+            sectionSelect.appendChild(clone);
+        });
+
+        if (matchedOptions.length === 1 && !sectionSelect.value) {
+            matchedOptions[0].selected = true;
+            sectionSelect.value = matchedOptions[0].value;
+        }
+    }
+
+    classSelect.addEventListener('change', function() {
+        // Reset section on manual class change
+        filterSections();
+    });
+
+    if (classSelect.value) {
+        filterSections();
+    } else {
+        sectionSelect.disabled = true;
+    }
+});
+</script>
+{% endblock %}

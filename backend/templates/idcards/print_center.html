@@ -1,0 +1,491 @@
+{% extends 'base.html' %}
+
+{% block title %}Print & PDF Center{% endblock %}
+{% block page_heading %}ID Card Print Layout Engine & Multi-Format Generator{% endblock %}
+
+{% block content %}
+<!-- Selection & Settings Filter -->
+<div class="card mb-4 shadow-sm border">
+    <div class="card-body">
+        <form method="GET" id="printFilterForm" class="row g-2 align-items-center">
+            <input type="hidden" name="template" id="selectedTemplateInput" value="{{ selected_template.id }}">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-secondary">Academic Session</label>
+                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                    {% for y in years %}
+                        <option value="{{ y.id }}" {% if selected_year.id == y.id %}selected{% endif %}>{{ y.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-secondary">Class Level</label>
+                <select name="class" class="form-select form-select-sm" onchange="document.getElementById('sectionSelect').value='all'; this.form.submit()">
+                    {% for c in classes %}
+                        <option value="{{ c.id }}" {% if selected_class.id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-secondary">Section</label>
+                <select name="section" id="sectionSelect" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {% if not selected_section %}selected{% endif %}>-- All Sections (Entire Class) --</option>
+                    {% for s in selected_class.sections.all %}
+                        <option value="{{ s.id }}" {% if selected_section and selected_section.id == s.id %}selected{% endif %}>Sec {{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-secondary">Print Layout (for PDF)</label>
+                <select name="layout" class="form-select form-select-sm" onchange="this.form.submit()">
+                    {% for l in layouts %}
+                        <option value="{{ l.id }}" {% if selected_layout.id == l.id %}selected{% endif %}>{{ l.name }} ({{ l.paper_size }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Visual Template Selection Gallery -->
+<div class="card mb-4 shadow-sm border">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h6 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-palette text-primary me-2"></i>Select Card Template Design
+            </h6>
+            <small class="text-muted">Choose which card design template will be used to render and print ID cards</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                Active: <strong>{{ selected_template.name }}</strong> (v{{ selected_template.version }})
+            </span>
+            <a href="{% url 'templates_list' %}" class="btn btn-sm btn-outline-secondary" title="Manage or create more templates">
+                <i class="bi bi-gear me-1"></i> Template Manager
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for t in templates %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 position-relative template-picker-card {% if selected_template.id == t.id %}border-primary shadow-sm bg-primary-subtle bg-opacity-10{% else %}border{% endif %}" 
+                     style="cursor: pointer; transition: all 0.2s;"
+                     onclick="selectCardTemplate({{ t.id }});">
+                    
+                    <!-- Top Bar with Selection Indicator -->
+                    <div class="p-2 d-flex justify-content-between align-items-center border-bottom bg-white rounded-top">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="template_picker_radio" id="templateRadio{{ t.id }}" value="{{ t.id }}" {% if selected_template.id == t.id %}checked{% endif %}>
+                            <label class="form-check-label fw-bold small text-dark" for="templateRadio{{ t.id }}">
+                                {{ t.name }}
+                            </label>
+                        </div>
+                        <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">v{{ t.version }}</span>
+                    </div>
+
+                    <!-- Mini Design Preview -->
+                    <div class="p-2 d-flex align-items-center justify-content-center bg-light">
+                        <div class="border rounded shadow-xs position-relative overflow-hidden" 
+                             style="{% if t.orientation == 'LANDSCAPE' %}width: 110px; height: 70px;{% else %}width: 70px; height: 110px;{% endif %} background-color: {{ t.background_color }}; display: flex; align-items: center; justify-content: center;">
+                            {% if t.background_image %}
+                                <img src="{{ t.background_image.url }}" alt="Background" 
+                                     style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: {% if t.bg_fit_mode == 'FIT' %}contain{% elif t.bg_fit_mode == 'CROP' %}cover{% else %}fill{% endif %}; opacity: 0.75;">
+                            {% endif %}
+                            <div class="position-relative text-center p-1" style="background: rgba(255,255,255,0.85); border-radius: 4px; max-width: 90%;">
+                                <i class="bi bi-person-badge text-primary d-block" style="font-size: 0.9rem;"></i>
+                                <span class="fw-semibold text-truncate d-block text-dark" style="font-size: 0.55rem;">{{ t.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Template Specs Footer -->
+                    <div class="card-footer bg-white p-2 text-muted" style="font-size: 0.75rem;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Orientation:</span>
+                            <strong class="text-dark">{{ t.get_orientation_display }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Duplex:</span>
+                            <span class="badge bg-light text-dark border">{{ t.get_duplex_mode_display }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Dimensions:</span>
+                            <span class="text-secondary">{{ t.width_mm }}&times;{{ t.height_mm }}mm</span>
+                        </div>
+                        {% if selected_template.id == t.id %}
+                            <div class="text-center mt-2 pt-1 border-top text-primary fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-check-circle-fill me-1"></i> Selected for Printing
+                            </div>
+                        {% else %}
+                            <div class="text-center mt-2 pt-1 border-top text-secondary" style="font-size: 0.75rem;">
+                                Click to select this design
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-4 text-muted">
+                No active card templates found. Please create one in <a href="{% url 'templates_list' %}">Template Designer</a>.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Eligibility Breakdown Banner -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 bg-white border-start border-success border-4 shadow-sm">
+            <span class="small text-muted text-uppercase fw-semibold">Print Eligible (Verified)</span>
+            <h3 class="fw-bold mb-0 text-success">{{ verified_count }}</h3>
+            <small class="text-success fw-semibold">Active & Photo Attached</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white border-start border-warning border-4 shadow-sm">
+            <span class="small text-muted text-uppercase fw-semibold">Pending Verification</span>
+            <h3 class="fw-bold mb-0 text-warning">{{ pending_count }}</h3>
+            <small class="text-secondary">Needs verification or override</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white border-start border-danger border-4 shadow-sm">
+            <span class="small text-muted text-uppercase fw-semibold">Rejected Verification</span>
+            <h3 class="fw-bold mb-0 text-danger">{{ rejected_count }}</h3>
+            <small class="text-secondary">Requires teacher revision</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white border-start border-secondary border-4 shadow-sm">
+            <span class="small text-muted text-uppercase fw-semibold">Missing Photos</span>
+            <h3 class="fw-bold mb-0 text-dark">{{ missing_photo_count }}</h3>
+            <small class="text-secondary">Photo mandatory for card</small>
+        </div>
+    </div>
+</div>
+
+<!-- Main Print & Export Form enclosing options and student selection table -->
+<form method="POST" id="mainPrintCenterForm">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="export_cards">
+    <input type="hidden" name="template" value="{{ selected_template.id }}">
+    <input type="hidden" name="layout" value="{{ selected_layout.id }}">
+    <input type="hidden" name="class" value="{{ selected_class.id }}">
+    <input type="hidden" name="section" value="{% if selected_section %}{{ selected_section.id }}{% else %}all{% endif %}">
+    <input type="hidden" name="year" value="{{ selected_year.id }}">
+
+    <div class="row g-4 mb-4">
+        <!-- Left Column: Print Layout & Generation Panel -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100 border">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-printer text-primary me-2"></i>Card Output & Export Settings</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Format Selection -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark me-1"></i>Output Format:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="centerFormatPdf" value="PDF" checked onchange="toggleCenterFormat('PDF')">
+                                <label class="form-check-label fw-semibold small text-dark" for="centerFormatPdf">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF Document
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="centerFormatPng" value="PNG" onchange="toggleCenterFormat('PNG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="centerFormatPng">
+                                    <i class="bi bi-file-earmark-image text-primary me-1"></i>PNG Images (300 DPI ZIP)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="centerFormatJpeg" value="JPEG" onchange="toggleCenterFormat('JPEG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="centerFormatJpeg">
+                                    <i class="bi bi-file-earmark-image text-success me-1"></i>JPEG Images (300 DPI ZIP)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sides Selection: Single Sided vs Double Sided Switch -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-layers me-1"></i>Sides to Print / Export:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="centerSidesFrontOnly" value="FRONT_ONLY" {% if sides_mode != 'BOTH' %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold small text-dark" for="centerSidesFrontOnly">
+                                    <i class="bi bi-file-earmark text-primary me-1"></i>Single Sided (Front Only)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="centerSidesBoth" value="BOTH" {% if sides_mode == 'BOTH' %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold small text-dark" for="centerSidesBoth">
+                                    <i class="bi bi-layers-half text-success me-1"></i>Double Sided (Both Front & Back)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                            <i class="bi bi-info-circle me-1"></i>Select <strong>Single Sided</strong> to exclude the back side entirely.
+                        </div>
+                    </div>
+
+                    <!-- Image Sizing Options (Hidden for PDF) -->
+                    <div id="centerImageOptions" class="mb-3 d-none">
+                        <label class="form-label small fw-semibold text-secondary">Card Sides in Image Archive</label>
+                        <select name="image_side" class="form-select form-select-sm">
+                            <option value="COMBINED" selected>Combined Side-by-Side (Front & Back on 1 Image file)</option>
+                            <option value="BOTH">Both Sides (Separate files in ZIP)</option>
+                            <option value="FRONT">Front Side Only</option>
+                            <option value="BACK">Back Side Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Print Scope Selection -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-people me-1"></i>Print / Export Scope:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="print_mode" id="scopeAll" value="all" checked onchange="togglePrintScope('all')">
+                                <label class="form-check-label fw-semibold small text-dark" for="scopeAll">
+                                    Print All Students in Class ({{ total_in_scope }} students)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="print_mode" id="scopeSelected" value="selected" onchange="togglePrintScope('selected')">
+                                <label class="form-check-label fw-semibold small text-dark" for="scopeSelected">
+                                    Only Selected Students (<span id="selectedScopeCount">0</span> selected)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="list-group list-group-flush small mb-3">
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Active Design Template:</span>
+                            <strong class="text-primary">{{ selected_template.name }} (v{{ selected_template.version }})</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Paper Format:</span>
+                            <strong class="text-dark">{{ selected_layout.get_paper_size_display }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Arrangement Grid:</span>
+                            <span class="badge bg-primary-subtle text-primary border">{{ auto_cols }} Columns &times; {{ auto_rows }} Rows ({{ auto_cards_per_page }}/page)</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Duplex Registration:</span>
+                            <strong class="text-success"><i class="bi bi-layers-half"></i> {{ selected_template.get_duplex_mode_display }}</strong>
+                        </li>
+                    </ul>
+
+                    <div class="form-check small mb-3">
+                        <input class="form-check-input" type="checkbox" name="override_unverified" value="true" id="overrideUnverifiedCheck" onchange="toggleOverride(this.checked)" checked>
+                        <label class="form-check-label text-muted" for="overrideUnverifiedCheck">
+                            Include active students with photos (even if pending verification)
+                        </label>
+                    </div>
+
+                    <div id="readyPrintAlert" class="alert alert-success small mb-3">
+                        <i class="bi bi-check-circle-fill me-1"></i> Ready to generate ID cards using template <strong>{{ selected_template.name }}</strong> for <strong>{{ selected_class.name }}{% if selected_section %} - Sec {{ selected_section.name }}{% else %} (All Sections){% endif %}</strong>.
+                    </div>
+
+                    <div id="noEligibleAlert" class="alert alert-warning small mb-3" style="display:none;">
+                        <i class="bi bi-exclamation-triangle me-1"></i> No verified students with photographs found in {{ selected_class.name }}{% if selected_section %} - Sec {{ selected_section.name }}{% else %} (All Sections){% endif %}. Check the box above to include pending verified students.
+                    </div>
+
+                    <button type="submit" id="submitPrintBtn" class="btn btn-primary w-100 py-2 fw-semibold" {% if total_in_scope == 0 %}disabled{% endif %}>
+                        <i class="bi bi-download me-1"></i> Generate & Download Cards
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Visual Sheet Layout Preview -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100 border">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-grid-3x3 text-secondary me-2"></i>Sheet Layout Preview ({{ selected_layout.paper_size }})</h6>
+                    <span class="badge bg-light text-muted border">Matrix: {{ auto_cols }}&times;{{ auto_rows }} ({{ auto_cards_per_page }}/sheet)</span>
+                </div>
+                <div class="card-body p-4 bg-light d-flex justify-content-center align-items-center">
+                    <!-- Mini sheet visual -->
+                    <div class="border bg-white shadow-sm p-3 rounded" style="width: 320px; min-height: 400px; display: grid; grid-template-columns: repeat({{ auto_cols }}, 1fr); gap: 6px;">
+                        {% for i in "x"|rjust:auto_cards_per_page %}
+                            <div class="border rounded d-flex flex-column align-items-center justify-content-center text-muted position-relative overflow-hidden" 
+                                 style="min-height: 65px; font-size: 0.65rem; background-color: {{ selected_template.background_color }};">
+                                {% if selected_template.background_image %}
+                                    <img src="{{ selected_template.background_image.url }}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.35;">
+                                {% endif %}
+                                <i class="bi bi-person-badge text-primary position-relative" style="font-size: 0.9rem;"></i>
+                                <span class="position-relative fw-semibold text-dark">Card #{{ forloop.counter }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-muted small text-center py-2">
+                    Margins: {{ selected_layout.margin_top_mm }}mm &bull; Gap: {{ selected_layout.gap_x_mm }}mm &bull; External crop marks enabled
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-Width Bottom Panel: Students in Scope Selection Table -->
+    <div class="card shadow-sm border mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-people-fill text-primary me-2"></i>Students in Scope: {{ selected_class.name }} &mdash; {% if selected_section %}Sec {{ selected_section.name }}{% else %}All Sections (Entire Class){% endif %}
+                </h6>
+                <small class="text-muted">Select specific students to print or leave all unchecked to print the entire class.</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark border px-3 py-2">
+                    Total: {{ total_in_scope }} students ({{ verified_count }} verified)
+                </span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th width="40"><input type="checkbox" id="selectAllScopeCheckbox" onchange="toggleAllScopeChecks(this.checked)"></th>
+                        <th width="50">Photo</th>
+                        <th>Student ID</th>
+                        <th>Roll</th>
+                        <th>Full Name</th>
+                        <th>Section</th>
+                        <th>Verification Status</th>
+                        <th>Print Eligibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students_in_scope %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="selected_students" value="{{ s.id }}" class="scope-student-check" onchange="updateScopeCount()">
+                        </td>
+                        <td>
+                            {% if s.photo %}
+                                <img src="{{ s.photo.url }}" alt="Photo" width="32" height="40" class="rounded object-fit-cover border">
+                            {% else %}
+                                <div class="rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width:32px; height:40px; font-size:0.65rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark"><code>{{ s.student_id }}</code></td>
+                        <td>#{{ s.roll_number }}</td>
+                        <td class="fw-semibold text-dark">{{ s.full_name }}</td>
+                        <td>Sec {{ s.section.name }}</td>
+                        <td>
+                            {% if s.verification_status == 'VERIFIED' %}
+                                <span class="badge badge-verified px-2 py-1"><i class="bi bi-check-circle"></i> Verified</span>
+                            {% elif s.verification_status == 'SUBMITTED' %}
+                                <span class="badge badge-submitted px-2 py-1"><i class="bi bi-hourglass-split"></i> Submitted</span>
+                            {% elif s.verification_status == 'REJECTED' %}
+                                <span class="badge badge-rejected px-2 py-1"><i class="bi bi-x-circle"></i> Rejected</span>
+                            {% else %}
+                                <span class="badge badge-pending px-2 py-1">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if s.is_print_eligible %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="bi bi-patch-check-fill me-1"></i> Eligible
+                                </span>
+                            {% elif s.photo %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                    Needs Verification
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    Missing Photo
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            No students found for the selected Class, Section, and Academic Session.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<script>
+function selectCardTemplate(templateId) {
+    var input = document.getElementById('selectedTemplateInput');
+    if (input) {
+        input.value = templateId;
+        document.getElementById('printFilterForm').submit();
+    }
+}
+
+function toggleCenterFormat(format) {
+    const imgOpt = document.getElementById('centerImageOptions');
+    if (format === 'PDF') {
+        if (imgOpt) imgOpt.classList.add('d-none');
+    } else {
+        if (imgOpt) imgOpt.classList.remove('d-none');
+    }
+}
+
+function toggleAllScopeChecks(checked) {
+    document.querySelectorAll('.scope-student-check').forEach(cb => cb.checked = checked);
+    updateScopeCount();
+}
+
+function updateScopeCount() {
+    const checked = document.querySelectorAll('.scope-student-check:checked');
+    const count = checked.length;
+    const countSpan = document.getElementById('selectedScopeCount');
+    if (countSpan) countSpan.innerText = count;
+
+    const radioSelected = document.getElementById('scopeSelected');
+    const radioAll = document.getElementById('scopeAll');
+    if (count > 0 && radioSelected) {
+        radioSelected.checked = true;
+    } else if (count === 0 && radioAll) {
+        radioAll.checked = true;
+    }
+}
+
+function togglePrintScope(mode) {
+    if (mode === 'all') {
+        document.querySelectorAll('.scope-student-check').forEach(cb => cb.checked = false);
+        const master = document.getElementById('selectAllScopeCheckbox');
+        if (master) master.checked = false;
+        const countSpan = document.getElementById('selectedScopeCount');
+        if (countSpan) countSpan.innerText = '0';
+    }
+}
+
+function toggleOverride(checked) {
+    var readyAlert = document.getElementById('readyPrintAlert');
+    var noAlert = document.getElementById('noEligibleAlert');
+    var submitBtn = document.getElementById('submitPrintBtn');
+    var totalInScope = {{ total_in_scope|default:0 }};
+    var verifiedCount = {{ verified_count|default:0 }};
+
+    if (checked && totalInScope > 0) {
+        if (readyAlert) readyAlert.style.display = 'block';
+        if (noAlert) noAlert.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+    } else if (verifiedCount > 0) {
+        if (readyAlert) readyAlert.style.display = 'block';
+        if (noAlert) noAlert.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+    } else {
+        if (readyAlert) readyAlert.style.display = 'none';
+        if (noAlert) noAlert.style.display = 'block';
+        if (submitBtn && totalInScope === 0) submitBtn.disabled = true;
+    }
+}
+</script>
+{% endblock %}

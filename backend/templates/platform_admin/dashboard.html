@@ -1,0 +1,237 @@
+{% extends 'platform_admin/base_platform.html' %}
+
+{% block title %}Executive Dashboard{% endblock %}
+
+{% block content %}
+<!-- Top Header Bar -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <h4 class="fw-bold mb-1 text-dark">Platform Executive Dashboard</h4>
+        <p class="text-muted small mb-0">Multi-tenant SaaS oversight &bull; {% now "l, F j, Y" %}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'platform_admin:organization_create' %}" class="btn btn-primary fw-semibold shadow-xs">
+            <i class="bi bi-plus-circle me-1"></i> Add New Organization
+        </a>
+        <a href="{% url 'platform_admin:subscriptions_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-credit-card me-1"></i> Subscriptions
+        </a>
+    </div>
+</div>
+
+<!-- Key Performance Indicators Row -->
+<div class="row g-3 mb-4">
+    <!-- Total Organizations -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-kpi p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small text-uppercase fw-semibold">Total Organizations</span>
+                    <h2 class="fw-bold my-1 text-dark">{{ total_orgs }}</h2>
+                    <div class="small">
+                        <span class="text-success fw-bold">{{ active_orgs }} active</span> &bull; 
+                        <span class="text-warning fw-bold">{{ trial_orgs }} trial</span>
+                    </div>
+                </div>
+                <div class="rounded-3 bg-primary-subtle text-primary p-3">
+                    <i class="bi bi-buildings fs-4"></i>
+                </div>
+            </div>
+            <div class="mt-3 pt-2 border-top small text-muted d-flex justify-content-between">
+                <span>Created this month:</span>
+                <strong class="text-dark">+{{ this_month_orgs }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Subscriptions -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-kpi p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small text-uppercase fw-semibold">Active Subscriptions</span>
+                    <h2 class="fw-bold my-1 text-success">{{ active_subs }}</h2>
+                    <div class="small">
+                        {% if expiring_soon > 0 %}
+                            <span class="text-danger fw-bold"><i class="bi bi-clock-history"></i> {{ expiring_soon }} expiring in 7d</span>
+                        {% else %}
+                            <span class="text-muted">All subscriptions healthy</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="rounded-3 bg-success-subtle text-success p-3">
+                    <i class="bi bi-shield-check fs-4"></i>
+                </div>
+            </div>
+            <div class="mt-3 pt-2 border-top small text-muted d-flex justify-content-between">
+                <span>Expiring in 30 days:</span>
+                <strong class="text-warning">{{ expiring_month }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Platform Students -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-kpi p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small text-uppercase fw-semibold">Enrolled Students</span>
+                    <h2 class="fw-bold my-1 text-primary">{{ total_students }}</h2>
+                    <div class="small text-muted">Across all schools</div>
+                </div>
+                <div class="rounded-3 bg-info-subtle text-info p-3">
+                    <i class="bi bi-person-badge fs-4"></i>
+                </div>
+            </div>
+            <div class="mt-3 pt-2 border-top small text-muted d-flex justify-content-between">
+                <span>Physical ID cards generated:</span>
+                <strong class="text-dark">{{ total_cards }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Platform Staff & Admins -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-kpi p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted small text-uppercase fw-semibold">Platform Users</span>
+                    <h2 class="fw-bold my-1 text-dark">{{ total_admins|add:total_teachers }}</h2>
+                    <div class="small">
+                        <span class="text-dark fw-bold">{{ total_admins }} Admins</span> &bull; 
+                        <span class="text-secondary">{{ total_teachers }} Teachers</span>
+                    </div>
+                </div>
+                <div class="rounded-3 bg-warning-subtle text-warning p-3">
+                    <i class="bi bi-people fs-4"></i>
+                </div>
+            </div>
+            <div class="mt-3 pt-2 border-top small text-muted d-flex justify-content-between">
+                <span>Suspended / Inactive Orgs:</span>
+                <strong class="text-danger">{{ suspended_orgs }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attention & Expiry Alert Banner (if any) -->
+{% if expiring_soon > 0 or expired_subs > 0 %}
+<div class="alert alert-warning border shadow-xs mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
+            <div>
+                <strong>Subscription Attention Required:</strong> 
+                {% if expired_subs > 0 %}{{ expired_subs }} organization(s) are expired.{% endif %}
+                {% if expiring_soon > 0 %} {{ expiring_soon }} organization(s) will expire within 7 days.{% endif %}
+            </div>
+        </div>
+        <a href="{% url 'platform_admin:subscriptions_list' %}?bucket=in_7_days" class="btn btn-sm btn-dark">
+            View Expiring Subscriptions
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Two Column Main Section -->
+<div class="row g-4 mb-4">
+    <!-- Left: Recently Added Organizations -->
+    <div class="col-lg-7">
+        <div class="card shadow-xs h-100 border">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-buildings text-primary me-2"></i>Recently Onboarded Organizations</h6>
+                <a href="{% url 'platform_admin:organizations_list' %}" class="small text-decoration-none fw-semibold">View All &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Organization</th>
+                            <th>Type</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in recent_orgs %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded bg-light border d-flex align-items-center justify-content-center text-primary fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                        {{ org.name|slice:":2"|upper }}
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'platform_admin:organization_detail' org.pk %}" class="text-dark fw-bold text-decoration-none d-block">
+                                            {{ org.name }}
+                                        </a>
+                                        <small class="text-muted">{{ org.org_id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-light text-secondary border">{{ org.get_org_type_display }}</span></td>
+                            <td>
+                                {% if org.subscription %}
+                                    <span class="fw-semibold text-dark">{{ org.subscription.plan.name }}</span>
+                                {% else %}
+                                    <span class="text-muted">None</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if org.status == 'ACTIVE' %}
+                                    <span class="badge badge-status-active">Active</span>
+                                {% elif org.status == 'TRIAL' %}
+                                    <span class="badge badge-status-trial">Trial</span>
+                                {% elif org.status == 'SUSPENDED' %}
+                                    <span class="badge badge-status-suspended">Suspended</span>
+                                {% else %}
+                                    <span class="badge badge-status-expired">Expired</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'platform_admin:organization_detail' org.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Inspect">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No organizations registered yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Recent Platform Audit Activity -->
+    <div class="col-lg-5">
+        <div class="card shadow-xs h-100 border">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-shield-check text-success me-2"></i>Platform Security & Activity</h6>
+                <a href="{% url 'platform_admin:audit_logs' %}" class="small text-decoration-none fw-semibold">View Logs &rarr;</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" style="font-size: 0.82rem;">
+                    {% for log in recent_logs %}
+                    <div class="list-group-item py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge bg-light text-dark border">{{ log.get_action_display }}</span>
+                            <span class="text-muted" style="font-size: 0.72rem;">{{ log.created_at|timesince }} ago</span>
+                        </div>
+                        <div class="text-dark fw-semibold text-truncate">{{ log.description }}</div>
+                        <div class="text-muted small">
+                            By: <strong>{{ log.user.username|default:"System" }}</strong>
+                            {% if log.organization %}&bull; Org: {{ log.organization.name }}{% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="p-4 text-center text-muted">No recent platform activity logged.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

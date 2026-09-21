@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+
+{% block title %}ID Card Templates{% endblock %}
+{% block page_heading %}ID Card Template Designer & Gallery{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-muted small mb-0">Create, customize, and manage physical card layouts with vector dynamic variables, machine-readable QR codes, logos, and signatures.</p>
+    </div>
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newTemplateModal">
+        <i class="bi bi-plus-lg me-1"></i> Create ID Card Template
+    </button>
+</div>
+
+<div class="row g-4">
+    {% for t in templates %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">{{ t.name }}</h6>
+                    <small class="text-muted">Version {{ t.version }}</small>
+                </div>
+                <div class="d-flex gap-1">
+                    {% if t.is_default %}
+                        <span class="badge bg-success-subtle text-success border border-success">Default</span>
+                    {% endif %}
+                    {% if t.design_mode == 'IMAGE_UPLOAD' %}
+                        <span class="badge bg-info-subtle text-info border border-info">Uploaded Design</span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border">From Scratch</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between small text-muted mb-2">
+                    <span>Orientation & Size:</span>
+                    <strong class="text-dark">{{ t.get_orientation_display }} ({{ t.width_mm }} &times; {{ t.height_mm }} mm)</strong>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mb-2">
+                    <span>Duplex Printing:</span>
+                    <strong class="text-dark">{{ t.get_duplex_mode_display }}</strong>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mb-2">
+                    <span>Canvas Elements:</span>
+                    <span class="badge bg-light text-secondary border">{{ t.elements.count }} Elements</span>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mb-3">
+                    <span>Printed Cards:</span>
+                    <span class="badge bg-light text-dark border">{{ t.generated_cards.count }} Issued</span>
+                </div>
+
+                {% if t.front_image_dpi %}
+                <div class="d-flex justify-content-between small text-muted mb-3">
+                    <span>Front Background:</span>
+                    <span class="badge {% if t.front_image_dpi >= 250 %}bg-success-subtle text-success border border-success{% else %}bg-warning-subtle text-warning border border-warning{% endif %}">
+                        {{ t.front_resolution_w }}&times;{{ t.front_resolution_h }}px ({{ t.front_image_dpi }} DPI)
+                    </span>
+                </div>
+                {% endif %}
+
+                <!-- Mini visual preview frame -->
+                <div class="border rounded p-2 text-center position-relative overflow-hidden" 
+                     style="height: 120px; display: flex; align-items: center; justify-content: center; background-color: {{ t.background_color }};">
+                    {% if t.background_image %}
+                        <img src="{{ t.background_image.url }}" alt="Background Preview" 
+                             style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: {% if t.bg_fit_mode == 'FIT' %}contain{% elif t.bg_fit_mode == 'CROP' %}cover{% else %}fill{% endif %}; opacity: 0.65;">
+                    {% endif %}
+                    <span class="small fw-semibold text-dark position-relative" style="background: rgba(255,255,255,0.85); padding: 4px 10px; border-radius: 4px;">
+                        <i class="bi bi-card-heading text-primary me-1"></i>
+                        {{ t.name }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top-0 pt-0 pb-3">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'print_center' %}?template={{ t.id }}" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-printer me-1"></i> Print with this Design
+                    </a>
+                    <a href="{% url 'template_designer' t.id %}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-palette me-1"></i> Open Designer Canvas
+                    </a>
+                    <div class="btn-group btn-group-sm w-100">
+                        <a href="{% url 'template_duplicate' t.id %}" class="btn btn-outline-secondary" title="Clone this template">
+                            <i class="bi bi-copy me-1"></i> Duplicate
+                        </a>
+                        <a href="{% url 'template_new_version' t.id %}" class="btn btn-outline-secondary" title="Increment version while preserving existing cards">
+                            <i class="bi bi-bezier2 me-1"></i> New Version
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5 text-muted">
+        <i class="bi bi-palette fs-1 d-block mb-2 text-secondary"></i>
+        No ID card templates created yet. Click "Create ID Card Template" to begin.
+    </div>
+    {% endfor %}
+</div>
+
+<!-- New Template Modal -->
+<div class="modal fade" id="newTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-plus-square text-primary me-2"></i>Create ID Card Template</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    
+                    <!-- Mode Selection -->
+                    <label class="form-label small fw-bold text-uppercase text-secondary mb-2">Select Design Mode</label>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100 cursor-pointer mode-selector-card active" id="modeCardScratch" onclick="setDesignMode('SCRATCH')">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="design_mode" id="modeScratch" value="SCRATCH" checked onchange="setDesignMode('SCRATCH')">
+                                    <label class="form-check-label fw-bold" for="modeScratch">
+                                        <i class="bi bi-brush text-primary me-1"></i> Design From Scratch
+                                    </label>
+                                </div>
+                                <p class="text-muted small mt-2 mb-0">Build a clean template using shapes, solid background colors, logos, dynamic student variables, and QR codes.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100 cursor-pointer mode-selector-card" id="modeCardUpload" onclick="setDesignMode('IMAGE_UPLOAD')">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="design_mode" id="modeUpload" value="IMAGE_UPLOAD" onchange="setDesignMode('IMAGE_UPLOAD')">
+                                    <label class="form-check-label fw-bold" for="modeUpload">
+                                        <i class="bi bi-image text-success me-1"></i> Upload Existing Design
+                                    </label>
+                                </div>
+                                <p class="text-muted small mt-2 mb-0">Upload existing pre-designed card graphics (PNG/JPG). Dynamic student information and QR codes will be overlaid on top.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- General Fields -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Template Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Greenwood Academy CR80 Student ID" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Card Orientation & Standard Size</label>
+                            <select name="orientation" class="form-select" id="orientationSelect" onchange="onOrientationChange()">
+                                <option value="PORTRAIT" selected>Portrait (54 mm width &times; 86 mm height - CR80)</option>
+                                <option value="LANDSCAPE">Landscape (86 mm width &times; 54 mm height - CR80)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Width (mm)</label>
+                            <input type="number" step="0.5" name="width_mm" id="inputWidthMm" class="form-control" value="54.0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Height (mm)</label>
+                            <input type="number" step="0.5" name="height_mm" id="inputHeightMm" class="form-control" value="86.0">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Duplex Mode</label>
+                        <select name="duplex_mode" class="form-select">
+                            <option value="FRONT_BACK" selected>Front & Back Sides (Duplex)</option>
+                            <option value="FRONT_ONLY">Front Side Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Mode A Fields: Scratch -->
+                    <div id="scratchOptions">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Front Background Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" value="#FFFFFF" onchange="document.getElementById('txtFrontBg').value=this.value">
+                                    <input type="text" name="background_color" id="txtFrontBg" class="form-control" value="#FFFFFF">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Back Background Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" value="#F8FAFC" onchange="document.getElementById('txtBackBg').value=this.value">
+                                    <input type="text" name="back_background_color" id="txtBackBg" class="form-control" value="#F8FAFC">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mode B Fields: Upload Existing Design -->
+                    <div id="uploadOptions" class="d-none border-top pt-3">
+                        <div class="alert alert-info py-2 px-3 small mb-3">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Background Layer Notice:</strong> Uploaded design artwork serves as the base canvas background. High resolution files (&ge; 300 DPI, e.g. 1016 &times; 638 px for CR80) yield best print results.
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Upload Front Design *</label>
+                                <input type="file" name="front_image" class="form-control" accept="image/png, image/jpeg, image/webp">
+                                <small class="text-muted">PNG, JPG, or WebP</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Upload Back Design (Optional)</label>
+                                <input type="file" name="back_image" class="form-control" accept="image/png, image/jpeg, image/webp">
+                                <small class="text-muted">For double-sided ID cards</small>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Background Fit Option</label>
+                                <select name="bg_fit_mode" class="form-select">
+                                    <option value="FILL" selected>Fill (Stretch to exact card boundaries)</option>
+                                    <option value="FIT">Fit (Preserve aspect ratio with letterbox)</option>
+                                    <option value="CROP">Crop (Preserve aspect ratio with center-crop)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Back Background Fit Option</label>
+                                <select name="back_bg_fit_mode" class="form-select">
+                                    <option value="FILL" selected>Fill (Stretch to exact card boundaries)</option>
+                                    <option value="FIT">Fit (Preserve aspect ratio with letterbox)</option>
+                                    <option value="CROP">Crop (Preserve aspect ratio with center-crop)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-arrow-right-circle me-1"></i> Create & Launch Designer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mode-selector-card {
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+    }
+    .mode-selector-card:hover {
+        border-color: #3B82F6 !important;
+        background-color: #F8FAFC;
+    }
+    .mode-selector-card.active {
+        border-color: #2563EB !important;
+        background-color: #EFF6FF;
+    }
+</style>
+
+<script>
+    function setDesignMode(mode) {
+        if (mode === 'SCRATCH') {
+            document.getElementById('modeScratch').checked = true;
+            document.getElementById('modeCardScratch').classList.add('active');
+            document.getElementById('modeCardUpload').classList.remove('active');
+            document.getElementById('scratchOptions').classList.remove('d-none');
+            document.getElementById('uploadOptions').classList.add('d-none');
+        } else {
+            document.getElementById('modeUpload').checked = true;
+            document.getElementById('modeCardUpload').classList.add('active');
+            document.getElementById('modeCardScratch').classList.remove('active');
+            document.getElementById('scratchOptions').classList.add('d-none');
+            document.getElementById('uploadOptions').classList.remove('d-none');
+            // Suggest landscape by default for existing designs if preferred
+            if (document.getElementById('orientationSelect').value === 'PORTRAIT') {
+                document.getElementById('orientationSelect').value = 'LANDSCAPE';
+                onOrientationChange();
+            }
+        }
+    }
+
+    function onOrientationChange() {
+        const ori = document.getElementById('orientationSelect').value;
+        if (ori === 'PORTRAIT') {
+            document.getElementById('inputWidthMm').value = '54.0';
+            document.getElementById('inputHeightMm').value = '86.0';
+        } else {
+            document.getElementById('inputWidthMm').value = '86.0';
+            document.getElementById('inputHeightMm').value = '54.0';
+        }
+    }
+</script>
+{% endblock %}

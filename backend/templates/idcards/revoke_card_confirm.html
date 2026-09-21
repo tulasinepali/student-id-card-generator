@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Revoke ID Card{% endblock %}
+{% block page_heading %}Revoke ID Card: {{ card.card_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-x-octagon-fill me-2"></i>Confirm Card Revocation</h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center mb-3">
+                    <i class="bi bi-shield-x fs-1 text-danger d-block mb-2"></i>
+                    <h5 class="fw-bold text-dark mb-1">Revoke Card {{ card.card_number }}</h5>
+                    <p class="text-secondary small">
+                        Student: <strong>{{ card.student.full_name }}</strong> (<code>{{ card.student.student_id }}</code>)
+                        {% if card.student.client %}
+                            <span class="badge bg-light text-dark border ms-1"><i class="bi bi-buildings me-1"></i>{{ card.student.client.name }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="alert alert-warning small">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Once revoked, scanning this card's QR code will immediately present an <strong>ID CARD REVOKED</strong> warning to the scanner.
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Mandatory Revocation Reason *</label>
+                        <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Student transferred to another institution, card reported lost or stolen..." required></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'cards_history' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-danger fw-semibold px-4">
+                            <i class="bi bi-slash-circle me-1"></i> Confirm Revocation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

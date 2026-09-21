@@ -1,0 +1,834 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Directory{% endblock %}
+{% block page_heading %}Student Directory & Verification Status{% endblock %}
+
+{% block content %}
+<!-- Search and Filters Bar -->
+<div class="card mb-4 shadow-sm border">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-2">
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Name, ID, roll..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <select name="year" class="form-select form-select-sm">
+                    <option value="">-- All Sessions --</option>
+                    {% for y in years %}
+                        <option value="{{ y.id }}" {% if selected_year == y.id|stringformat:"s" %}selected{% endif %}>{{ y.name }}{% if y.is_active %} (Active){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="class" id="filter_class" class="form-select form-select-sm">
+                    <option value="">-- All Classes --</option>
+                    {% for c in classes %}
+                        <option value="{{ c.id }}" {% if selected_class == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="section" id="filter_section" class="form-select form-select-sm">
+                    <option value="">-- All Sections --</option>
+                    {% for c in classes %}
+                        <optgroup label="{{ c.name }}" data-class-id="{{ c.id }}">
+                            {% for s in c.sections.all %}
+                                <option value="{{ s.id }}" data-class-id="{{ c.id }}" {% if selected_section == s.id|stringformat:"s" %}selected{% endif %}>Sec {{ s.name }} ({{ c.name }})</option>
+                            {% endfor %}
+                        </optgroup>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="verification_status" class="form-select form-select-sm">
+                    <option value="">-- Verification --</option>
+                    <option value="VERIFIED" {% if selected_v_status == 'VERIFIED' %}selected{% endif %}>Verified</option>
+                    <option value="SUBMITTED" {% if selected_v_status == 'SUBMITTED' %}selected{% endif %}>Submitted</option>
+                    <option value="PENDING" {% if selected_v_status == 'PENDING' %}selected{% endif %}>Pending</option>
+                    <option value="REJECTED" {% if selected_v_status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <select name="missing_photo" class="form-select form-select-sm" title="Missing Photo">
+                    <option value="">Photo</option>
+                    <option value="yes" {% if selected_missing_photo == 'yes' %}selected{% endif %}>No Photo</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
+                <a href="{% url 'students_list' %}" class="btn btn-sm btn-outline-secondary" title="Reset Filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+
+        {% if active_filters %}
+            <div class="d-flex align-items-center flex-wrap gap-2 pt-2 border-top mt-2">
+                <span class="small text-muted fw-semibold me-1"><i class="bi bi-funnel-fill text-primary"></i> Active Filters:</span>
+                {% for f in active_filters %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        {{ f.label }}
+                    </span>
+                {% endfor %}
+                <a href="{% url 'students_list' %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none px-2 py-1 ms-auto" title="Clear all filters">
+                    <i class="bi bi-x-circle me-1"></i> Clear All Filters
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Main Table with Bulk Actions -->
+<form method="POST" id="studentsListForm">
+    {% csrf_token %}
+    <div class="card shadow-sm border">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <!-- Left: Bulk actions toolbar & Dedicated Print Buttons -->
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <!-- Class Print Button: Always visible and prominent -->
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#printClassModal">
+                    <i class="bi bi-collection-fill me-1"></i> Print / Export Entire Class Cards
+                </button>
+
+                <!-- Selected Cards Print Button: Dynamic badge -->
+                <button type="button" id="btnOpenBulkPrint" class="btn btn-sm btn-primary fw-semibold" onclick="openBulkPrintModal()">
+                    <i class="bi bi-printer-fill me-1"></i> Print / Export Selected Cards (<span id="selectedCountSpan">0</span>)
+                </button>
+
+                <div class="vr mx-1"></div>
+
+                <select name="bulk_action" id="bulkActionSelect" class="form-select form-select-sm" style="width: auto;">
+                    <option value="">-- More Bulk Actions --</option>
+                    <option value="print">Print / Export Selected Cards</option>
+                    <option value="verify">Approve & Verify Selected (with Photos)</option>
+                    <option value="delete">Delete Selected</option>
+                </select>
+                <button type="button" id="bulkApplyBtn" class="btn btn-sm btn-outline-dark">
+                    Apply
+                </button>
+            </div>
+
+            <!-- Right: Action buttons -->
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark border px-2 py-1 small">
+                    Showing {{ page_obj.paginator.count }} student{{ page_obj.paginator.count|pluralize }}{% if total_all_students and total_all_students != page_obj.paginator.count %} (of {{ total_all_students }} total){% endif %}
+                </span>
+                <a href="{% url 'excel_export' %}?class={{ selected_class }}&section={{ selected_section }}&year={{ selected_year }}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-file-earmark-excel"></i> Export Excel
+                </a>
+                <a href="{% url 'student_create' %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-person-plus"></i> Add Student
+                </a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th width="40"><input type="checkbox" id="selectAllCheckbox"></th>
+                        <th width="50">Photo</th>
+                        <th>Student ID</th>
+                        <th>Roll</th>
+                        <th>Full Name</th>
+                        <th>Class & Section</th>
+                        <th>Verification</th>
+                        <th>Card Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in page_obj %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="selected_students" value="{{ s.id }}" class="student-select-check" onchange="updateSelectedCount()">
+                        </td>
+                        <td>
+                            {% if s.photo %}
+                                <img src="{{ s.photo.url }}" alt="Photo" width="34" height="42" class="rounded object-fit-cover border">
+                            {% else %}
+                                <div class="rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width:34px; height:42px; font-size:0.7rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark"><code>{{ s.student_id }}</code></td>
+                        <td>#{{ s.roll_number }}</td>
+                        <td class="fw-semibold text-dark">
+                            <a href="{% url 'student_detail' s.id %}" class="text-decoration-none text-dark">
+                                {{ s.full_name }}
+                            </a>
+                        </td>
+                        <td>{{ s.class_level.name }} &mdash; Sec {{ s.section.name }}</td>
+                        <td>
+                            {% if s.verification_status == 'VERIFIED' %}
+                                <span class="badge badge-verified px-2 py-1"><i class="bi bi-check-circle"></i> Verified</span>
+                            {% elif s.verification_status == 'SUBMITTED' %}
+                                <span class="badge badge-submitted px-2 py-1"><i class="bi bi-hourglass-split"></i> Submitted</span>
+                            {% elif s.verification_status == 'REJECTED' %}
+                                <span class="badge badge-rejected px-2 py-1" title="{{ s.rejection_reason }}"><i class="bi bi-x-circle"></i> Rejected</span>
+                            {% else %}
+                                <span class="badge badge-pending px-2 py-1">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with latest_card=s.id_cards.first %}
+                                {% if latest_card %}
+                                    {% if latest_card.validity_status == 'ACTIVE' %}
+                                        <span class="badge badge-active px-2 py-1">{{ latest_card.get_card_status_display }}</span>
+                                    {% elif latest_card.validity_status == 'REVOKED' %}
+                                        <span class="badge badge-revoked px-2 py-1">Revoked</span>
+                                    {% else %}
+                                        <span class="badge badge-expired px-2 py-1">Expired</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small">Not Generated</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <!-- Direct Single Student Print / Export Button -->
+                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" title="Print or Export ID Card (PDF/JPEG/PNG)"
+                                    onclick="openSinglePrintModal({{ s.id }}, '{{ s.full_name|escapejs }}', '{{ s.student_id|escapejs }}', '{{ s.class_level.name|escapejs }}', '{{ s.section.name|escapejs }}', '{% if s.photo %}{{ s.photo.url }}{% endif %}')">
+                                <i class="bi bi-printer"></i>
+                            </button>
+                            <a href="{% url 'student_detail' s.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'student_edit' s.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Edit student">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'student_delete' s.id %}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Delete student">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-1 d-block mb-2 text-secondary"></i>
+                            <h6 class="fw-bold mb-1">No students match your criteria</h6>
+                            {% if active_filters %}
+                                <p class="small text-muted mb-3">Some filters are currently active that may be hiding enrolled students.</p>
+                                <a href="{% url 'students_list' %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters to View All ({{ total_all_students }})
+                                </a>
+                            {% else %}
+                                <p class="small text-muted mb-3">No students have been enrolled in the directory yet.</p>
+                                <a href="{% url 'student_create' %}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-person-plus me-1"></i> Enroll First Student
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="small text-muted">Showing {{ page_obj.start_index }} &ndash; {{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+                <ul class="pagination pagination-sm m-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&class={{ selected_class }}&section={{ selected_section }}&verification_status={{ selected_v_status }}">Previous</a></li>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&class={{ selected_class }}&section={{ selected_section }}&verification_status={{ selected_v_status }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Modal 1: Bulk Print / Export Selected Modal -->
+        <div class="modal fade" id="bulkPrintModal" tabindex="-1" aria-labelledby="bulkPrintModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="bulkPrintModalLabel">
+                            <i class="bi bi-printer text-primary me-2"></i>Print / Export Selected Student ID Cards
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-light border small mb-3 d-flex justify-content-between align-items-center">
+                            <span>Generating ID cards for all checked students in current directory view.</span>
+                            <span id="selectedCountBadge" class="badge bg-primary px-3 py-2">0 students selected</span>
+                        </div>
+
+                        <!-- Format Selection -->
+                        <div class="card p-3 mb-3 bg-light border-0">
+                            <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark me-1"></i>Choose Output Format:</label>
+                            <div class="d-flex gap-3 flex-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="format_type" id="bulkFormatPdf" value="PDF" checked onchange="toggleFormatFields('bulk', 'PDF')">
+                                    <label class="form-check-label fw-semibold small text-dark" for="bulkFormatPdf">
+                                        <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF Document (Print Sheet Grid)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="format_type" id="bulkFormatPng" value="PNG" onchange="toggleFormatFields('bulk', 'PNG')">
+                                    <label class="form-check-label fw-semibold small text-dark" for="bulkFormatPng">
+                                        <i class="bi bi-file-earmark-image text-primary me-1"></i>PNG Images (300 DPI ZIP)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="format_type" id="bulkFormatJpeg" value="JPEG" onchange="toggleFormatFields('bulk', 'JPEG')">
+                                    <label class="form-check-label fw-semibold small text-dark" for="bulkFormatJpeg">
+                                        <i class="bi bi-file-earmark-image text-success me-1"></i>JPEG Images (300 DPI ZIP)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sides Selection: Single Sided vs Double Sided -->
+                        <div class="card p-3 mb-3 bg-light border-0">
+                            <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-layers me-1"></i>Sides to Print / Export:</label>
+                            <div class="d-flex gap-3 flex-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="sides_mode" id="bulkSidesFrontOnly" value="FRONT_ONLY" checked>
+                                    <label class="form-check-label fw-semibold small text-dark" for="bulkSidesFrontOnly">
+                                        <i class="bi bi-file-earmark text-primary me-1"></i>Single Sided (Front Only)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="sides_mode" id="bulkSidesBoth" value="BOTH">
+                                    <label class="form-check-label fw-semibold small text-dark" for="bulkSidesBoth">
+                                        <i class="bi bi-layers-half text-success me-1"></i>Double Sided (Both Front & Back)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                                <i class="bi bi-info-circle me-1"></i>Choose <strong>Single Sided</strong> to print front page only (no back side).
+                            </div>
+                        </div>
+
+                        <!-- PDF Layout Options -->
+                        <div id="bulkPdfOptions" class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Sheet / Paper Layout</label>
+                            <select name="layout" class="form-select form-select-sm">
+                                {% for l in layouts %}
+                                    <option value="{{ l.id }}">{{ l.name }} ({{ l.paper_size }}) &mdash; {{ l.cols }}x{{ l.rows }} Matrix</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Image Side Options (Hidden for PDF) -->
+                        <div id="bulkImageOptions" class="mb-3 d-none">
+                            <label class="form-label small fw-semibold text-secondary">Card Sides to Include in ZIP Archive</label>
+                            <select name="image_side" class="form-select form-select-sm">
+                                <option value="COMBINED" selected>Combined Side-by-Side (Front & Back on 1 Image)</option>
+                                <option value="BOTH">Both Sides Separate (Front & Back individual files)</option>
+                                <option value="FRONT">Front Side Only</option>
+                                <option value="BACK">Back Side Only</option>
+                            </select>
+                        </div>
+
+                        <!-- Visual Card Template Picker -->
+                        <h6 class="fw-bold small text-dark mb-2"><i class="bi bi-palette me-1"></i>Choose Card Design Template:</h6>
+                        <div class="row g-3 mb-3" style="max-height: 280px; overflow-y: auto;">
+                            {% for t in templates %}
+                            <div class="col-md-6">
+                                <label class="card h-100 p-2 border position-relative" style="cursor: pointer;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <input type="radio" name="template" value="{{ t.id }}" {% if forloop.first or t.is_default %}checked{% endif %} class="form-check-input mt-1">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold small text-dark">{{ t.name }}</span>
+                                                <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">v{{ t.version }}</span>
+                                            </div>
+                                            <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                                {{ t.get_orientation_display }} &bull; {{ t.get_duplex_mode_display }}
+                                            </div>
+                                            <!-- Mini preview -->
+                                            <div class="mt-2 border rounded position-relative overflow-hidden" 
+                                                 style="height: 55px; background-color: {{ t.background_color }}; display: flex; align-items: center; justify-content: center;">
+                                                {% if t.background_image %}
+                                                    <img src="{{ t.background_image.url }}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.7;">
+                                                {% endif %}
+                                                <span class="badge bg-dark bg-opacity-50 text-white position-relative" style="font-size: 0.7rem;">
+                                                    <i class="bi bi-card-heading me-1"></i>{{ t.name }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center text-muted small py-3">No active card templates found.</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Rule 15 override checkbox -->
+                        <div class="form-check small">
+                            <input class="form-check-input" type="checkbox" name="include_unverified" value="true" id="bulkIncludeUnverified" checked>
+                            <label class="form-check-label text-muted" for="bulkIncludeUnverified">
+                                Include active students with photos even if verification status is pending
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-download me-1"></i> Generate & Download Selected Cards
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Modal 2: Print / Export Entire Class Modal -->
+<div class="modal fade" id="printClassModal" tabindex="-1" aria-labelledby="printClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'students_list' %}">
+                {% csrf_token %}
+                <input type="hidden" name="bulk_action" value="print_class">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="printClassModalLabel">
+                        <i class="bi bi-collection-fill text-primary me-2"></i>Print / Export Entire Class ID Cards
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Class, Section & Session Scope -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-secondary">Target Class</label>
+                            <select name="class_id" id="modalClassSelect" class="form-select form-select-sm" onchange="updateClassModalSections(this.value)">
+                                {% for c in classes %}
+                                    <option value="{{ c.id }}" {% if selected_class == c.id|stringformat:"s" or forloop.first and not selected_class %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-secondary">Target Section</label>
+                            <select name="section_id" id="modalSectionSelect" class="form-select form-select-sm">
+                                <option value="all">-- All Sections (Entire Class) --</option>
+                                {% for c in classes %}
+                                    {% for s in c.sections.all %}
+                                        <option value="{{ s.id }}" data-class-id="{{ c.id }}">{{ s.name }} ({{ c.name }})</option>
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-secondary">Academic Session</label>
+                            <select name="year_id" class="form-select form-select-sm">
+                                {% for y in years %}
+                                    <option value="{{ y.id }}" {% if y.is_active %}selected{% endif %}>{{ y.name }}{% if y.is_active %} (Active){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Format Selection -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark me-1"></i>Choose Output Format:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="classFormatPdf" value="PDF" checked onchange="toggleFormatFields('class', 'PDF')">
+                                <label class="form-check-label fw-semibold small text-dark" for="classFormatPdf">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF Document (Print Sheet Grid)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="classFormatPng" value="PNG" onchange="toggleFormatFields('class', 'PNG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="classFormatPng">
+                                    <i class="bi bi-file-earmark-image text-primary me-1"></i>PNG Images (300 DPI ZIP)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="classFormatJpeg" value="JPEG" onchange="toggleFormatFields('class', 'JPEG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="classFormatJpeg">
+                                    <i class="bi bi-file-earmark-image text-success me-1"></i>JPEG Images (300 DPI ZIP)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sides Selection: Single Sided vs Double Sided -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-layers me-1"></i>Sides to Print / Export:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="classSidesFrontOnly" value="FRONT_ONLY" checked>
+                                <label class="form-check-label fw-semibold small text-dark" for="classSidesFrontOnly">
+                                    <i class="bi bi-file-earmark text-primary me-1"></i>Single Sided (Front Only)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="classSidesBoth" value="BOTH">
+                                <label class="form-check-label fw-semibold small text-dark" for="classSidesBoth">
+                                    <i class="bi bi-layers-half text-success me-1"></i>Double Sided (Both Front & Back)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                            <i class="bi bi-info-circle me-1"></i>Choose <strong>Single Sided</strong> to print front page only (no back side).
+                        </div>
+                    </div>
+
+                    <!-- PDF Layout Options -->
+                    <div id="classPdfOptions" class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Sheet / Paper Layout</label>
+                        <select name="layout" class="form-select form-select-sm">
+                            {% for l in layouts %}
+                                <option value="{{ l.id }}">{{ l.name }} ({{ l.paper_size }}) &mdash; {{ l.cols }}x{{ l.rows }} Matrix</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Image Side Options (Hidden for PDF) -->
+                    <div id="classImageOptions" class="mb-3 d-none">
+                        <label class="form-label small fw-semibold text-secondary">Card Sides to Include in ZIP Archive</label>
+                        <select name="image_side" class="form-select form-select-sm">
+                            <option value="COMBINED" selected>Combined Side-by-Side (Front & Back on 1 Image)</option>
+                            <option value="BOTH">Both Sides Separate (Front & Back individual files)</option>
+                            <option value="FRONT">Front Side Only</option>
+                            <option value="BACK">Back Side Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Visual Card Template Picker -->
+                    <h6 class="fw-bold small text-dark mb-2"><i class="bi bi-palette me-1"></i>Choose Card Design Template:</h6>
+                    <div class="row g-3 mb-3" style="max-height: 260px; overflow-y: auto;">
+                        {% for t in templates %}
+                        <div class="col-md-6">
+                            <label class="card h-100 p-2 border position-relative" style="cursor: pointer;">
+                                <div class="d-flex align-items-start gap-2">
+                                    <input type="radio" name="template" value="{{ t.id }}" {% if forloop.first or t.is_default %}checked{% endif %} class="form-check-input mt-1">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold small text-dark">{{ t.name }}</span>
+                                            <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">v{{ t.version }}</span>
+                                        </div>
+                                        <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                            {{ t.get_orientation_display }} &bull; {{ t.get_duplex_mode_display }}
+                                        </div>
+                                        <div class="mt-2 border rounded position-relative overflow-hidden" 
+                                             style="height: 55px; background-color: {{ t.background_color }}; display: flex; align-items: center; justify-content: center;">
+                                            {% if t.background_image %}
+                                                <img src="{{ t.background_image.url }}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.7;">
+                                            {% endif %}
+                                            <span class="badge bg-dark bg-opacity-50 text-white position-relative" style="font-size: 0.7rem;">
+                                                <i class="bi bi-card-heading me-1"></i>{{ t.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted small py-3">No active card templates found.</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-check small">
+                        <input class="form-check-input" type="checkbox" name="include_unverified" value="true" id="classIncludeUnverified" checked>
+                        <label class="form-check-label text-muted" for="classIncludeUnverified">
+                            Include active students with photos even if verification status is pending
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-download me-1"></i> Generate & Download Class Cards
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Print / Export Individual Student Modal -->
+<div class="modal fade" id="singlePrintModal" tabindex="-1" aria-labelledby="singlePrintModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'students_list' %}">
+                {% csrf_token %}
+                <input type="hidden" name="bulk_action" value="print_single">
+                <input type="hidden" name="student_id" id="singleModalStudentId" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="singlePrintModalLabel">
+                        <i class="bi bi-person-badge text-primary me-2"></i>Print / Export Individual Student Card
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Student Preview Banner -->
+                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border mb-3">
+                        <div id="singleModalPhotoContainer">
+                            <div class="rounded border bg-white d-flex align-items-center justify-content-center text-muted" style="width:48px; height:60px;">
+                                <i class="bi bi-person fs-4"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark" id="singleModalStudentName">Student Name</h6>
+                            <div class="small text-muted">
+                                ID: <code id="singleModalStudentIdDisplay">STU000</code> &bull; 
+                                Class: <strong id="singleModalStudentClass">Grade X</strong> &bull; 
+                                Sec: <strong id="singleModalStudentSection">A</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Format Selection -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark me-1"></i>Choose Output Format:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="singleFormatPdf" value="PDF" checked onchange="toggleFormatFields('single', 'PDF')">
+                                <label class="form-check-label fw-semibold small text-dark" for="singleFormatPdf">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF Document
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="singleFormatPng" value="PNG" onchange="toggleFormatFields('single', 'PNG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="singleFormatPng">
+                                    <i class="bi bi-file-earmark-image text-primary me-1"></i>PNG Image (High-Res 300 DPI)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="singleFormatJpeg" value="JPEG" onchange="toggleFormatFields('single', 'JPEG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="singleFormatJpeg">
+                                    <i class="bi bi-file-earmark-image text-success me-1"></i>JPEG Image (High-Res 300 DPI)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sides Selection: Single Sided vs Double Sided -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-layers me-1"></i>Sides to Print / Export:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="singleSidesFrontOnly" value="FRONT_ONLY" checked>
+                                <label class="form-check-label fw-semibold small text-dark" for="singleSidesFrontOnly">
+                                    <i class="bi bi-file-earmark text-primary me-1"></i>Single Sided (Front Only)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="singleSidesBoth" value="BOTH">
+                                <label class="form-check-label fw-semibold small text-dark" for="singleSidesBoth">
+                                    <i class="bi bi-layers-half text-success me-1"></i>Double Sided (Both Front & Back)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                            <i class="bi bi-info-circle me-1"></i>Choose <strong>Single Sided</strong> to print front page only (no back side).
+                        </div>
+                    </div>
+
+                    <!-- PDF Page Sizing: Exact card vs Print Sheet -->
+                    <div id="singlePdfOptions" class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">PDF Output Layout</label>
+                        <select name="layout" class="form-select form-select-sm">
+                            <option value="" selected>Single Card Page (Exact 54 x 86 mm CR80 Dimensions)</option>
+                            {% for l in layouts %}
+                                <option value="{{ l.id }}">{{ l.name }} (Full {{ l.paper_size }} Sheet Grid)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Image Sizing Options (Hidden for PDF) -->
+                    <div id="singleImageOptions" class="mb-3 d-none">
+                        <label class="form-label small fw-semibold text-secondary">Image Output Structure</label>
+                        <select name="image_side" class="form-select form-select-sm">
+                            <option value="COMBINED" selected>Combined Side-by-Side (Front & Back on 1 Image file)</option>
+                            <option value="ZIP">Both Sides (Separate files in a ZIP)</option>
+                            <option value="FRONT">Front Side Only</option>
+                            <option value="BACK">Back Side Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Visual Card Template Picker -->
+                    <h6 class="fw-bold small text-dark mb-2"><i class="bi bi-palette me-1"></i>Choose Card Design Template:</h6>
+                    <div class="row g-3 mb-3" style="max-height: 240px; overflow-y: auto;">
+                        {% for t in templates %}
+                        <div class="col-md-6">
+                            <label class="card h-100 p-2 border position-relative" style="cursor: pointer;">
+                                <div class="d-flex align-items-start gap-2">
+                                    <input type="radio" name="template" value="{{ t.id }}" {% if forloop.first or t.is_default %}checked{% endif %} class="form-check-input mt-1">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold small text-dark">{{ t.name }}</span>
+                                            <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">v{{ t.version }}</span>
+                                        </div>
+                                        <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                            {{ t.get_orientation_display }} &bull; {{ t.get_duplex_mode_display }}
+                                        </div>
+                                        <div class="mt-2 border rounded position-relative overflow-hidden" 
+                                             style="height: 55px; background-color: {{ t.background_color }}; display: flex; align-items: center; justify-content: center;">
+                                            {% if t.background_image %}
+                                                <img src="{{ t.background_image.url }}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.7;">
+                                            {% endif %}
+                                            <span class="badge bg-dark bg-opacity-50 text-white position-relative" style="font-size: 0.7rem;">
+                                                <i class="bi bi-card-heading me-1"></i>{{ t.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted small py-3">No active card templates found.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-download me-1"></i> Generate & Download Card
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update toolbar button and badge when checkboxes change
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.student-select-check:checked');
+        const count = checked.length;
+        const countSpan = document.getElementById('selectedCountSpan');
+        const countBadge = document.getElementById('selectedCountBadge');
+        if (countSpan) countSpan.innerText = count;
+        if (countBadge) countBadge.innerText = count + ' student' + (count > 1 ? 's' : '') + ' selected';
+
+        const btn = document.getElementById('btnOpenBulkPrint');
+        if (btn) {
+            if (count > 0) {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-primary');
+            } else {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            }
+        }
+    }
+
+    document.getElementById('selectAllCheckbox')?.addEventListener('change', function(e) {
+        document.querySelectorAll('.student-select-check').forEach(cb => cb.checked = e.target.checked);
+        updateSelectedCount();
+    });
+
+    function openBulkPrintModal() {
+        const checked = document.querySelectorAll('.student-select-check:checked');
+        if (checked.length === 0) {
+            alert('Please check at least one student checkbox to print or export cards.');
+            return;
+        }
+        document.getElementById('bulkActionSelect').value = 'print';
+        updateSelectedCount();
+        const modal = new bootstrap.Modal(document.getElementById('bulkPrintModal'));
+        modal.show();
+    }
+
+    function openSinglePrintModal(id, name, stuId, className, secName, photoUrl) {
+        document.getElementById('singleModalStudentId').value = id;
+        document.getElementById('singleModalStudentName').innerText = name;
+        document.getElementById('singleModalStudentIdDisplay').innerText = stuId;
+        document.getElementById('singleModalStudentClass').innerText = className;
+        document.getElementById('singleModalStudentSection').innerText = secName;
+
+        const photoContainer = document.getElementById('singleModalPhotoContainer');
+        if (photoUrl) {
+            photoContainer.innerHTML = '<img src="' + photoUrl + '" alt="Photo" width="48" height="60" class="rounded object-fit-cover border">';
+        } else {
+            photoContainer.innerHTML = '<div class="rounded border bg-white d-flex align-items-center justify-content-center text-muted" style="width:48px; height:60px;"><i class="bi bi-person fs-4"></i></div>';
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('singlePrintModal'));
+        modal.show();
+    }
+
+    function toggleFormatFields(prefix, format) {
+        const pdfOpt = document.getElementById(prefix + 'PdfOptions');
+        const imgOpt = document.getElementById(prefix + 'ImageOptions');
+        if (format === 'PDF') {
+            if (pdfOpt) pdfOpt.classList.remove('d-none');
+            if (imgOpt) imgOpt.classList.add('d-none');
+        } else {
+            if (pdfOpt) pdfOpt.classList.add('d-none');
+            if (imgOpt) imgOpt.classList.remove('d-none');
+        }
+    }
+
+    document.getElementById('bulkApplyBtn')?.addEventListener('click', function(e) {
+        const action = document.getElementById('bulkActionSelect').value;
+        const checked = document.querySelectorAll('.student-select-check:checked');
+        if (checked.length === 0) {
+            alert('Please select at least one student checkbox.');
+            return;
+        }
+        if (action === 'print') {
+            openBulkPrintModal();
+        } else if (action === 'delete') {
+            if (confirm('Are you sure you want to delete the selected students?')) {
+                document.getElementById('studentsListForm').submit();
+            }
+        } else if (action === 'verify') {
+            if (confirm('Approve and verify selected students with photos?')) {
+                document.getElementById('studentsListForm').submit();
+            }
+        } else {
+            alert('Please select an action from the Bulk Actions dropdown.');
+        }
+    });
+
+    // Dynamic Section filtering in Student Directory Filter Bar and Modal
+    function updateClassModalSections(classId) {
+        const sectionSelect = document.getElementById('modalSectionSelect');
+        if (!sectionSelect) return;
+        const allOptions = Array.from(sectionSelect.querySelectorAll('option[data-class-id]'));
+        sectionSelect.innerHTML = '<option value="all">-- All Sections (Entire Class) --</option>';
+
+        const filtered = allOptions.filter(opt => opt.getAttribute('data-class-id') === classId);
+        filtered.forEach(opt => sectionSelect.appendChild(opt.cloneNode(true)));
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const classFilter = document.getElementById('filter_class');
+        const sectionFilter = document.getElementById('filter_section');
+        if (classFilter && sectionFilter) {
+            const allOptions = Array.from(sectionFilter.querySelectorAll('option[data-class-id]'));
+            const initialSectionId = "{{ selected_section|default:'' }}";
+
+            function updateSections() {
+                const selectedClassId = classFilter.value;
+                const currentSelected = sectionFilter.value || initialSectionId;
+
+                sectionFilter.innerHTML = '<option value="">-- All Sections --</option>';
+
+                if (!selectedClassId) {
+                    allOptions.forEach(opt => sectionFilter.appendChild(opt.cloneNode(true)));
+                    sectionFilter.value = currentSelected;
+                    return;
+                }
+
+                const filtered = allOptions.filter(opt => opt.getAttribute('data-class-id') === selectedClassId);
+                filtered.forEach(opt => {
+                    const clone = opt.cloneNode(true);
+                    if (clone.value === currentSelected) {
+                        clone.selected = true;
+                    }
+                    sectionFilter.appendChild(clone);
+                });
+            }
+
+            classFilter.addEventListener('change', updateSections);
+            if (classFilter.value) updateSections();
+        }
+
+        // Initialize modal sections for the first selected class
+        const modalClass = document.getElementById('modalClassSelect');
+        if (modalClass && modalClass.value) {
+            updateClassModalSections(modalClass.value);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Super Admin Platform{% endblock %} | Platform Owner</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --platform-sidebar-width: 260px;
+            --platform-navy: #0F172A;
+            --platform-navy-light: #1E293B;
+            --platform-accent: #3B82F6;
+            --platform-accent-hover: #2563EB;
+            --platform-bg: #F8FAFC;
+        }
+        body {
+            background-color: var(--platform-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1E293B;
+            overflow-x: hidden;
+        }
+        /* Sidebar Styling */
+        #platformSidebar {
+            width: var(--platform-sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: var(--platform-navy);
+            color: #94A3B8;
+            z-index: 1040;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        #platformSidebar .brand-header {
+            padding: 1.25rem 1.5rem;
+            background-color: #090D16;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        #platformSidebar .nav-section-title {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #64748B;
+            padding: 1rem 1.5rem 0.4rem;
+        }
+        #platformSidebar .nav-link {
+            color: #94A3B8;
+            padding: 0.65rem 1.5rem;
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-left: 3px solid transparent;
+            transition: all 0.15s ease;
+        }
+        #platformSidebar .nav-link:hover {
+            color: #FFFFFF;
+            background-color: var(--platform-navy-light);
+        }
+        #platformSidebar .nav-link.active {
+            color: #FFFFFF;
+            background-color: rgba(59, 130, 246, 0.15);
+            border-left-color: var(--platform-accent);
+            font-weight: 600;
+        }
+        #platformSidebar .nav-link i {
+            font-size: 1.1rem;
+            width: 1.25rem;
+            text-align: center;
+        }
+        /* Main Content wrapper */
+        #platformContent {
+            margin-left: var(--platform-sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Top Navigation Header */
+        #platformTopNav {
+            height: 64px;
+            background-color: #FFFFFF;
+            border-bottom: 1px solid #E2E8F0;
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .support-banner {
+            background: linear-gradient(90deg, #F59E0B 0%, #D97706 100%);
+            color: #FFFFFF;
+            font-size: 0.85rem;
+            padding: 0.45rem 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card-kpi {
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            background: #FFFFFF;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-kpi:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+        }
+        .badge-status-active { background-color: #DEF7EC; color: #03543F; border: 1px solid #BCF0DA; }
+        .badge-status-trial { background-color: #FEF08A; color: #713F12; border: 1px solid #FDE047; }
+        .badge-status-suspended { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+        .badge-status-expired { background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Support Mode Active Banner -->
+    {% if request.session.support_mode_org_id %}
+    <div class="support-banner">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-tools fs-5"></i>
+            <span>SUPPORT MODE ACTIVE: You are currently inspecting <strong>{{ request.session.support_mode_org_name }}</strong>. All actions are logged.</span>
+        </div>
+        <a href="{% url 'platform_admin:support_exit' %}" class="btn btn-sm btn-dark text-white fw-bold px-3">
+            <i class="bi bi-box-arrow-right me-1"></i> Exit Support Mode
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Fixed Sidebar -->
+    <nav id="platformSidebar">
+        <div class="brand-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-3 bg-primary p-2 text-white d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                    <i class="bi bi-grid-fill"></i>
+                </div>
+                <div>
+                    <h6 class="text-white mb-0 fw-bold" style="font-size: 0.95rem;">Platform Owner</h6>
+                    <small class="text-secondary" style="font-size: 0.72rem;">SaaS Control Panel</small>
+                </div>
+            </div>
+            <span class="badge bg-danger" style="font-size: 0.65rem;">SUPER</span>
+        </div>
+
+        <div class="py-2">
+            <div class="nav-section-title">Core Management</div>
+            <a href="{% url 'platform_admin:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{% url 'platform_admin:organizations_list' %}" class="nav-link {% if 'organization' in request.resolver_match.url_name and request.resolver_match.url_name != 'organization_create' %}active{% endif %}">
+                <i class="bi bi-buildings"></i> Organizations
+            </a>
+            <a href="{% url 'platform_admin:organization_create' %}" class="nav-link {% if request.resolver_match.url_name == 'organization_create' %}active{% endif %}">
+                <i class="bi bi-plus-circle"></i> Add Organization
+            </a>
+
+            <div class="nav-section-title">Users & Access</div>
+            <a href="{% url 'platform_admin:users_list' %}" class="nav-link {% if request.resolver_match.url_name == 'users_list' %}active{% endif %}">
+                <i class="bi bi-people"></i> Platform Users
+            </a>
+            <a href="{% url 'platform_admin:admin_create' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_create' %}active{% endif %}">
+                <i class="bi bi-person-plus"></i> Create Org Admin
+            </a>
+
+            <div class="nav-section-title">Subscriptions</div>
+            <a href="{% url 'platform_admin:subscriptions_list' %}" class="nav-link {% if request.resolver_match.url_name == 'subscriptions_list' %}active{% endif %}">
+                <i class="bi bi-credit-card"></i> Subscriptions
+            </a>
+            <a href="{% url 'platform_admin:plans_list' %}" class="nav-link {% if request.resolver_match.url_name == 'plans_list' %}active{% endif %}">
+                <i class="bi bi-card-checklist"></i> Plan Tiers
+            </a>
+
+            <div class="nav-section-title">Platform Operations</div>
+            <a href="{% url 'platform_admin:audit_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_logs' %}active{% endif %}">
+                <i class="bi bi-shield-check"></i> Audit & Activity
+            </a>
+            <a href="{% url 'platform_admin:settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                <i class="bi bi-gear"></i> Platform Settings
+            </a>
+
+            <div class="nav-section-title">Switch Portals</div>
+            <a href="/" target="_blank" class="nav-link text-info">
+                <i class="bi bi-box-arrow-up-right"></i> Organization Site
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div id="platformContent">
+        <!-- Top Navigation -->
+        <header id="platformTopNav">
+            <!-- Global Platform Search Bar -->
+            <form action="{% url 'platform_admin:global_search' %}" method="GET" class="d-flex align-items-center" style="max-width: 480px; width: 100%;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Search organizations, admin, student ID, email..." value="{{ request.GET.q }}">
+                </div>
+            </form>
+
+            <!-- User Menu -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                        SA
+                    </div>
+                    <div class="d-none d-sm-block text-end">
+                        <div class="fw-bold text-dark" style="font-size: 0.85rem;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div class="text-muted" style="font-size: 0.72rem;">Platform Super Admin</div>
+                    </div>
+                </div>
+
+                <div class="vr"></div>
+
+                <a href="{% url 'platform_admin:logout' %}" class="btn btn-sm btn-outline-danger" title="Logout of Super Admin">
+                    <i class="bi bi-box-arrow-right"></i> <span class="d-none d-md-inline">Logout</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Page Container -->
+        <main class="flex-grow-1 p-4">
+            <!-- Django Messages -->
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-xs border" role="alert">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill text-success fs-5"></i>
+                        {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                        {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-circle-fill text-warning fs-5"></i>
+                        {% else %}<i class="bi bi-info-circle-fill text-info fs-5"></i>{% endif %}
+                        <div>{{ message }}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-top py-3 px-4 text-center text-muted small">
+            <div>&copy; {% now "Y" %} Antigravity ID Platform SaaS. All rights reserved. &bull; Enterprise Multi-Organization Control System</div>
+        </footer>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

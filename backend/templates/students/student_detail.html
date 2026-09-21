@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.full_name }} - Profile{% endblock %}
+{% block page_heading %}Student Details: {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Photo & Key Badges -->
+    <div class="col-lg-4">
+        <div class="card text-center p-4 mb-4">
+            <div class="position-relative d-inline-block mx-auto mb-3">
+                {% if student.photo %}
+                    <img src="{{ student.photo.url }}" alt="Photo" width="160" height="210" class="rounded object-fit-cover border shadow-sm">
+                {% else %}
+                    <div class="rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width:160px; height:210px;">
+                        <i class="bi bi-person fs-1"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <h5 class="fw-bold text-dark mb-1">{{ student.full_name }}</h5>
+            <div class="text-primary fw-semibold mb-2"><code>{{ student.student_id }}</code></div>
+            <div>
+                <span class="badge bg-light text-dark border px-3 py-1 me-1">{{ student.class_level.name }} &mdash; Sec {{ student.section.name }}</span>
+                <span class="badge bg-light text-dark border px-3 py-1">Roll #{{ student.roll_number }}</span>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="d-flex justify-content-center gap-2">
+                {% if student.verification_status == 'VERIFIED' %}
+                    <span class="badge badge-verified px-3 py-2"><i class="bi bi-patch-check-fill"></i> VERIFIED FOR PRINTING</span>
+                {% elif student.verification_status == 'SUBMITTED' %}
+                    <span class="badge badge-submitted px-3 py-2"><i class="bi bi-hourglass-split"></i> SUBMITTED BY TEACHER</span>
+                {% elif student.verification_status == 'REJECTED' %}
+                    <span class="badge badge-rejected px-3 py-2"><i class="bi bi-x-circle-fill"></i> VERIFICATION REJECTED</span>
+                {% else %}
+                    <span class="badge badge-pending px-3 py-2">PENDING VERIFICATION</span>
+                {% endif %}
+            </div>
+
+            {% if student.rejection_reason %}
+                <div class="alert alert-danger small mt-3 mb-0 text-start">
+                    <strong>Rejection Notes:</strong> {{ student.rejection_reason }}
+                </div>
+            {% endif %}
+
+            <div class="d-flex gap-2 justify-content-center mt-4">
+                {% if student.verification_status == 'VERIFIED' and student.photo %}
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#printCardModal">
+                        <i class="bi bi-printer me-1"></i> Print ID Card
+                    </button>
+                {% endif %}
+                <a href="{% url 'student_edit' student.id %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i> Edit Student
+                </a>
+                <a href="{% url 'student_delete' student.id %}" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i> Delete
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Academic, Guardian, History -->
+    <div class="col-lg-8">
+        <!-- Academic & Personal Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-person-lines-fill text-primary me-2"></i>Academic & Personal Data</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Full Legal Name</small>
+                        <span class="fw-semibold text-dark">{{ student.full_name }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Academic Year</small>
+                        <span class="fw-semibold text-dark">{{ student.academic_year.name }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Date of Birth</small>
+                        <span class="fw-semibold text-dark">{{ student.date_of_birth|date:"d M Y"|default:"Not recorded" }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Gender</small>
+                        <span class="fw-semibold text-dark">{{ student.get_gender_display }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Blood Group</small>
+                        <span class="fw-semibold text-dark">{{ student.blood_group|default:"Not recorded" }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Enrollment Status</small>
+                        <span class="fw-semibold text-dark">{{ student.get_status_display }}</span>
+                    </div>
+                    <div class="col-12">
+                        <small class="text-muted d-block">Residential Address</small>
+                        <span class="fw-semibold text-dark">{{ student.address|default:"Not recorded" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guardian & Contact Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-telephone text-primary me-2"></i>Guardian & Emergency Contacts</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Guardian Full Name</small>
+                        <span class="fw-semibold text-dark">{{ student.guardian_name|default:"Not recorded" }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Guardian Phone</small>
+                        <span class="fw-semibold text-dark">{{ student.guardian_phone|default:"Not recorded" }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Emergency Secondary Contact</small>
+                        <span class="fw-semibold text-dark">{{ student.emergency_contact|default:"Not recorded" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated ID Cards History -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history text-secondary me-2"></i>Issued ID Cards Archive</h6>
+                <span class="badge bg-light text-secondary border">{{ student.id_cards.count }} cards issued</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-custom align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Card Number</th>
+                            <th>Academic Session</th>
+                            <th>Validity Period</th>
+                            <th>Status</th>
+                            <th class="text-end">Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in student.id_cards.all %}
+                        <tr>
+                            <td class="fw-bold text-dark"><code>{{ c.card_number }}</code></td>
+                            <td>{{ c.academic_year.name }}</td>
+                            <td class="small">{{ c.valid_from|date:"d M Y" }} &ndash; {{ c.valid_until|date:"d M Y" }}</td>
+                            <td>
+                                {% if c.validity_status == 'ACTIVE' %}
+                                    <span class="badge badge-active px-2 py-1">Active</span>
+                                {% elif c.validity_status == 'REVOKED' %}
+                                    <span class="badge badge-revoked px-2 py-1">Revoked</span>
+                                {% else %}
+                                    <span class="badge badge-expired px-2 py-1">Expired</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'public_qr_verify' c.secure_token %}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                    <i class="bi bi-qr-code"></i> Test QR
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-3 text-muted small">No ID cards generated yet for this student.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Verification History Timeline -->
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-journal-check text-secondary me-2"></i>Verification Audit Log</h6>
+            </div>
+            <div class="list-group list-group-flush" style="font-size: 0.85rem;">
+                {% for v in student.verification_history.all %}
+                <div class="list-group-item py-2 px-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold text-dark">{{ v.previous_status }} &rarr; {{ v.new_status }}</span>
+                        <span class="text-muted" style="font-size: 0.75rem;">{{ v.timestamp|date:"d M Y H:i" }}</span>
+                    </div>
+                    <div class="text-secondary small">{{ v.notes|default:"No notes provided." }}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">Action by: {{ v.actor_name }}</div>
+                </div>
+                {% empty %}
+                <div class="p-3 text-center text-muted small">No verification history recorded.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Single Card Modal with Template & Format Selection -->
+<div class="modal fade" id="printCardModal" tabindex="-1" aria-labelledby="printCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="print_card">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="printCardModalLabel">
+                        <i class="bi bi-printer text-primary me-2"></i>Print / Export ID Card: {{ student.full_name }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border small mb-3">
+                        Generating official ID Card for <strong>{{ student.full_name }}</strong> (<code>{{ student.student_id }}</code>, {{ student.class_level.name }} - Sec {{ student.section.name }}).
+                    </div>
+
+                    <!-- Format Selection -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark me-1"></i>Choose Output Format:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="detailFormatPdf" value="PDF" checked onchange="toggleDetailFormat('PDF')">
+                                <label class="form-check-label fw-semibold small text-dark" for="detailFormatPdf">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF Document
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="detailFormatPng" value="PNG" onchange="toggleDetailFormat('PNG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="detailFormatPng">
+                                    <i class="bi bi-file-earmark-image text-primary me-1"></i>PNG Image (300 DPI High-Res)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="format_type" id="detailFormatJpeg" value="JPEG" onchange="toggleDetailFormat('JPEG')">
+                                <label class="form-check-label fw-semibold small text-dark" for="detailFormatJpeg">
+                                    <i class="bi bi-file-earmark-image text-success me-1"></i>JPEG Image (300 DPI High-Res)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sides Selection: Single Sided vs Double Sided -->
+                    <div class="card p-3 mb-3 bg-light border-0">
+                        <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-layers me-1"></i>Sides to Print / Export:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="detailSidesFrontOnly" value="FRONT_ONLY" checked>
+                                <label class="form-check-label fw-semibold small text-dark" for="detailSidesFrontOnly">
+                                    <i class="bi bi-file-earmark text-primary me-1"></i>Single Sided (Front Only)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sides_mode" id="detailSidesBoth" value="BOTH">
+                                <label class="form-check-label fw-semibold small text-dark" for="detailSidesBoth">
+                                    <i class="bi bi-layers-half text-success me-1"></i>Double Sided (Both Front & Back)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                            <i class="bi bi-info-circle me-1"></i>Choose <strong>Single Sided</strong> to print front page only (no back side).
+                        </div>
+                    </div>
+
+                    <!-- PDF Sizing Options -->
+                    <div id="detailPdfOptions" class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">PDF Output Page Sizing</label>
+                        <select name="layout_choice" id="detailLayoutChoice" class="form-select form-select-sm" onchange="toggleDetailLayoutSelect(this.value)">
+                            <option value="card" selected>Single Card Page (Exact 54 x 86 mm CR80 Dimensions)</option>
+                            <option value="sheet">Print Layout Sheet (Grid)</option>
+                        </select>
+                        <div id="detailSheetLayoutContainer" class="mt-2 d-none">
+                            <label class="form-label small fw-semibold text-secondary">Select Sheet Layout</label>
+                            <select name="layout" class="form-select form-select-sm">
+                                {% for l in layouts %}
+                                    <option value="{{ l.id }}">{{ l.name }} ({{ l.paper_size }}) &mdash; {{ l.cols }}x{{ l.rows }} Matrix</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Image Sizing Options (Hidden for PDF) -->
+                    <div id="detailImageOptions" class="mb-3 d-none">
+                        <label class="form-label small fw-semibold text-secondary">Image Output Structure</label>
+                        <select name="image_side" class="form-select form-select-sm">
+                            <option value="COMBINED" selected>Combined Side-by-Side (Front & Back on 1 Image file)</option>
+                            <option value="ZIP">Both Sides (Separate files in a ZIP)</option>
+                            <option value="FRONT">Front Side Only</option>
+                            <option value="BACK">Back Side Only</option>
+                        </select>
+                    </div>
+
+                    <h6 class="fw-bold small text-dark mb-2"><i class="bi bi-palette me-1"></i>Choose Card Design:</h6>
+                    <div class="row g-3 mb-3" style="max-height: 250px; overflow-y: auto;">
+                        {% for t in templates %}
+                        <div class="col-md-6">
+                            <label class="card h-100 p-2 border position-relative template-radio-card" style="cursor: pointer;">
+                                <div class="d-flex align-items-start gap-2">
+                                    <input type="radio" name="template" value="{{ t.id }}" {% if forloop.first or t.is_default %}checked{% endif %} class="form-check-input mt-1">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold small text-dark">{{ t.name }}</span>
+                                            <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">v{{ t.version }}</span>
+                                        </div>
+                                        <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                            {{ t.get_orientation_display }} &bull; {{ t.get_duplex_mode_display }}
+                                        </div>
+                                        <!-- Thumbnail -->
+                                        <div class="mt-2 border rounded position-relative overflow-hidden" 
+                                             style="height: 55px; background-color: {{ t.background_color }}; display: flex; align-items: center; justify-content: center;">
+                                            {% if t.background_image %}
+                                                <img src="{{ t.background_image.url }}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.7;">
+                                            {% endif %}
+                                            <span class="badge bg-dark bg-opacity-50 text-white position-relative" style="font-size: 0.7rem;">
+                                                <i class="bi bi-card-heading me-1"></i>{{ t.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted small py-3">No active card templates found.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-download me-1"></i> Generate & Download Card
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDetailFormat(format) {
+    const pdfOpt = document.getElementById('detailPdfOptions');
+    const imgOpt = document.getElementById('detailImageOptions');
+    if (format === 'PDF') {
+        if (pdfOpt) pdfOpt.classList.remove('d-none');
+        if (imgOpt) imgOpt.classList.add('d-none');
+    } else {
+        if (pdfOpt) pdfOpt.classList.add('d-none');
+        if (imgOpt) imgOpt.classList.remove('d-none');
+    }
+}
+
+function toggleDetailLayoutSelect(val) {
+    const container = document.getElementById('detailSheetLayoutContainer');
+    if (val === 'sheet') {
+        container.classList.remove('d-none');
+    } else {
+        container.classList.add('d-none');
+    }
+}
+</script>
+{% endblock %}

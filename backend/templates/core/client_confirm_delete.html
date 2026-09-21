@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm Delete Client Organization - {{ client.name }}{% endblock %}
+{% block page_heading %}Delete Client Organization{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+        <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger text-white py-3 d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                <h6 class="mb-0 fw-bold">Confirm Client Organization Deletion</h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="bg-danger-subtle text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-trash3-fill fs-2"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-1">Delete "{{ client.name }}"?</h5>
+                    <div class="d-flex justify-content-center gap-2 align-items-center">
+                        <span class="badge bg-secondary-subtle text-secondary fw-semibold">{{ client.client_code }}</span>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">{{ client.get_client_type_display }}</span>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="bi bi-geo-alt me-1"></i>{{ client.address|default:client.municipality|default:"Nepal" }}
+                    </p>
+                </div>
+
+                <div class="alert alert-danger mb-4">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-exclamation-octagon-fill fs-5 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <strong class="d-block mb-1">Warning: Permanent Deletion</strong>
+                            This action cannot be undone. Deleting this client organization will permanently erase:
+                            <ul class="mb-0 mt-2 ps-3 small">
+                                <li><strong>{{ students_count }}</strong> Enrolled Student record{{ students_count|pluralize }} &amp; photos</li>
+                                <li><strong>{{ cards_count }}</strong> Issued ID Card{{ cards_count|pluralize }} &amp; print history</li>
+                                {% if templates_count %}
+                                <li><strong>{{ templates_count }}</strong> Client-specific ID Card Template{{ templates_count|pluralize }}</li>
+                                {% endif %}
+                                <li>All institutional branding assets (logo, digital signature)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                {% if teachers_count %}
+                <div class="alert alert-warning small mb-4">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>{{ teachers_count }}</strong> teacher{{ teachers_count|pluralize }} currently assigned to this client will be unassigned from this client organization.
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <a href="{% url 'client_management' %}" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger px-4 fw-semibold">
+                            <i class="bi bi-trash3 me-1"></i> Yes, Permanently Delete
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
