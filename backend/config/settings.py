@@ -47,7 +47,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,21 +79,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-# Default to SQLite for zero-setup execution; supports DATABASE_URL from Railway / PostgreSQL
+# Default to SQLite for zero-setup execution; supports DATABASE_URL / environment configs for PostgreSQL
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.sqlite3'),
         'NAME': BASE_DIR / os.getenv('DB_NAME', 'db.sqlite3'),
     }
 }
-
-if os.getenv('DATABASE_URL'):
-    import dj_database_url
-    DATABASES['default'] = dj_database_url.config(
-        conn_max_age=600,
-        conn_health_checks=True,
-        ssl_require=False
-    )
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -113,8 +104,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-WHITENOISE_MANIFEST_STRICT = False
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -159,7 +148,7 @@ APP_COPYRIGHT_YEAR = os.getenv('APP_COPYRIGHT_YEAR', '2026')
 # System Upload Constraints
 MAX_IMAGE_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
 MAX_ZIP_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
-MAX_EXCEL_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_EXCEL_UPLOAD_SIZE = 10 * 1024 * 1024 # 10MB
 ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 
 # CORS Configuration (allows Flutter Web in Chrome and mobile clients)
@@ -183,14 +172,6 @@ X_FRAME_OPTIONS = 'DENY'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
-
-# CSRF Trusted Origins for Railway, custom domains, and local testing
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip() for origin in os.getenv(
-        'CSRF_TRUSTED_ORIGINS',
-        'http://localhost:8000,http://127.0.0.1:8000,https://*.railway.app,https://*.up.railway.app'
-    ).split(',') if origin.strip()
-]
 
 # Production-Specific Security Toggles
 if not DEBUG:
