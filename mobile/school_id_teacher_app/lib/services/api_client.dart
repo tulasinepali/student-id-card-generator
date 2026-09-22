@@ -23,9 +23,16 @@ class ApiClient {
   Future<String> get baseUrl async {
     if (_baseUrl != null) return _baseUrl!;
     final prefs = await SharedPreferences.getInstance();
-    _baseUrl = prefs.getString('custom_base_url') ?? ApiConstants.defaultBaseUrl;
+    final custom = prefs.getString('custom_base_url');
+    if (custom != null && !custom.contains('192.168.') && !custom.contains('127.0.0.1') && !custom.contains('10.0.2.2')) {
+      _baseUrl = custom;
+    } else {
+      _baseUrl = ApiConstants.defaultBaseUrl;
+      await prefs.setString('custom_base_url', _baseUrl!);
+    }
     return _baseUrl!;
   }
+
 
   Future<void> setCustomBaseUrl(String url) async {
     _baseUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
