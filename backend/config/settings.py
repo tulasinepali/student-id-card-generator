@@ -18,7 +18,11 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-school-id-production-grade-key-2026')
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,*').split(',') if h.strip()]
+raw_hosts = os.getenv('ALLOWED_HOSTS', '*')
+if raw_hosts == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(',') if h.strip()]
 
 # Application definition
 INSTALLED_APPS = [
@@ -47,6 +51,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -87,6 +92,17 @@ DATABASES = {
     }
 }
 
+if os.getenv('DATABASE_URL'):
+    try:
+        import dj_database_url
+        DATABASES['default'] = dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=False
+        )
+    except Exception:
+        pass
+
 AUTH_USER_MODEL = 'accounts.User'
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -104,6 +120,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+WHITENOISE_MANIFEST_STRICT = False
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -175,8 +193,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Production-Specific Security Toggles
 if not DEBUG:
-    # Ensure allowed hosts is strictly populated without wildcards in production
-    if '*' in ALLOWED_HOSTS:
+    if '*' in ALLOWED_HOSTS and len(ALLOWED_HOSTS) > 1:
         ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h != '*']
     SECURE_BROWSER_XSS_FILTER = True
     if os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1'):
@@ -186,4 +203,22 @@ if not DEBUG:
         SECURE_HSTS_SECONDS = 31536000
         SECURE_HSTS_INCLUDE_SUBDOMAINS = True
         SECURE_HSTS_PRELOAD = True
+
+# CSRF Trusted Origins for cloud platforms, custom domains, and local testing
+csrf_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_env.split(',') if origin.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'https://*.onrender.com',
+        'https://*.railway.app',
+        'https://*.up.railway.app',
+        'https://*.fly.dev',
+        'https://*.koyeb.app',
+        'https://*.herokuapp.com',
+        'https://*.pythonanywhere.com',
+    ]
+
 
