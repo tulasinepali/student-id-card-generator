@@ -473,29 +473,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         // Logo / Header
                         Center(
-                          child: Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.contain,
+                              errorBuilder: (ctx, error, stackTrace) => Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(18),
                                 ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.badge_rounded,
-                              size: 40,
-                              color: Colors.white,
+                                child: const Icon(
+                                  Icons.badge_rounded,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 20),
                         Text(
                           AppConfig.appName,

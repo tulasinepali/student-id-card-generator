@@ -16,7 +16,6 @@ class _AboutScreenState extends State<AboutScreen> {
   String _appName = AppConfig.appName;
   String _appVersion = AppConfig.appVersion;
   String _appDescription = AppConfig.appDescription;
-  String? _logoUrl;
   String _designerName = AppConfig.designerName;
   String _designerRole = AppConfig.designerRole;
   String _contactPhone = AppConfig.contactPhone;
@@ -45,7 +44,7 @@ class _AboutScreenState extends State<AboutScreen> {
             _appDescription = (response['description'] != null && response['description'].toString().isNotEmpty)
                 ? response['description']
                 : AppConfig.appDescription;
-            _logoUrl = response['logo_url'];
+
             _designerName = (response['designer_name'] != null && response['designer_name'].toString().isNotEmpty)
                 ? response['designer_name']
                 : AppConfig.designerName;
@@ -115,22 +114,18 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: (_logoUrl != null && _logoUrl!.isNotEmpty)
-                      ? Image.network(
-                          _logoUrl!,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.contain,
-                          errorBuilder: (ctx, error, stackTrace) => Container(
-                            color: AppColors.primary,
-                            child: const Icon(Icons.badge_rounded, size: 48, color: Colors.white),
-                          ),
-                        )
-                      : Container(
-                          color: AppColors.primary,
-                          child: const Icon(Icons.badge_rounded, size: 48, color: Colors.white),
-                        ),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.contain,
+                    errorBuilder: (ctx, error, stackTrace) => Container(
+                      color: AppColors.primary,
+                      child: const Icon(Icons.badge_rounded, size: 48, color: Colors.white),
+                    ),
+                  ),
                 ),
+
               ),
             ),
             const SizedBox(height: 16),
