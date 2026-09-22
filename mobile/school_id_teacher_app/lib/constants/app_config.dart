@@ -2,7 +2,7 @@
 /// As specified in Requirement 38 & 66, these placeholders are centralized
 /// and MUST NOT be replaced with invented information.
 class AppConfig {
-  static const String appName = "Apex ID - Teacher Portal";
+  static const String appName = "CardFlow - Teacher Portal";
   static const String appVersion = "1.0.0";
   static const String appDescription =
       "An organization ID-card management and verification application.";

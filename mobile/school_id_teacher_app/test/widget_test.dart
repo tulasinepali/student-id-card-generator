@@ -14,7 +14,7 @@ void main() {
 
   group('AppConfig & Placeholder Tests', () {
     test('AppConfig has expected developer placeholder values', () {
-      expect(AppConfig.appName, equals('Apex ID - Teacher Portal'));
+      expect(AppConfig.appName, equals('CardFlow - Teacher Portal'));
       expect(AppConfig.designerName, equals('[YOUR FULL NAME]'));
       expect(AppConfig.designerRole, equals('Designer & Developer'));
       expect(AppConfig.contactPhone, equals('[YOUR PHONE]'));
