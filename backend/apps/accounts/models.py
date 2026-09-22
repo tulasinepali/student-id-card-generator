@@ -1,5 +1,25 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
+
+
+class CustomUserManager(UserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'SUPER_ADMIN')
+        extra_fields.setdefault('organization', None)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self._create_user(username, email, password, **extra_fields)
+
+    def create_user(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_superuser', False)
+        return self._create_user(username, email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -19,6 +39,8 @@ class User(AbstractUser):
         help_text="The organization/institution this user belongs to"
     )
 
+    objects = CustomUserManager()
+
     def is_teacher(self):
         return self.role == 'TEACHER'
 
@@ -28,11 +50,13 @@ class User(AbstractUser):
 
     def is_super_admin(self):
         """Returns True ONLY for platform superadmins / platform owners."""
-        return self.role == 'SUPER_ADMIN' or (self.is_superuser and self.role != 'ADMIN')
+        return self.role == 'SUPER_ADMIN' or self.is_superuser
 
     def save(self, *args, **kwargs):
         """Strictly enforce credential and role boundaries at the model level."""
-        if self.role == 'SUPER_ADMIN':
+        # Any user created or marked as superuser is strictly a Platform Super Admin
+        if self.is_superuser or self.role == 'SUPER_ADMIN':
+            self.role = 'SUPER_ADMIN'
             self.is_superuser = True
             self.is_staff = True
             self.organization = None

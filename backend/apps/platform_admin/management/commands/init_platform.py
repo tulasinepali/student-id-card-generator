@@ -87,7 +87,12 @@ class Command(BaseCommand):
             admin_user.save()
             self.stdout.write(self.style.SUCCESS(f" [OK] Created Super Admin: '{superadmin_user}' (Password: '{superadmin_pass}')"))
         else:
-            self.stdout.write(f" [EXISTS] Super Admin '{superadmin_user}' already exists.")
+            admin_user.role = 'SUPER_ADMIN'
+            admin_user.is_superuser = True
+            admin_user.is_staff = True
+            admin_user.organization = None
+            admin_user.save()
+            self.stdout.write(self.style.SUCCESS(f" [UPDATED] Super Admin '{superadmin_user}' verified and promoted to Platform Super Admin."))
 
         # 3. Default Platform Setting
         PlatformSetting.get_instance()
