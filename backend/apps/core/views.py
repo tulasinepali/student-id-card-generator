@@ -43,17 +43,21 @@ def landing_page_view(request):
         org_type = request.POST.get('org_type', 'SCHOOL').strip()
         plan_code = request.POST.get('plan_code', '').strip()
         message_text = request.POST.get('message', '').strip()
+        inquiry_type = request.POST.get('inquiry_type', '').strip()
 
         if name and (email or phone):
             plan_obj = SubscriptionPlan.objects.filter(code=plan_code).first() if plan_code else None
             plan_name = plan_obj.name if plan_obj else (plan_code if plan_code else "")
 
-            if plan_code:
+            # Strict discrimination between Package Order and Demo Request
+            is_package_order = (inquiry_type == 'PACKAGE_ORDER')
+
+            if is_package_order:
                 notif_type = 'PACKAGE_ORDER'
                 priority = 'HIGH'
-                title = f"New Package Order: {plan_name} by {name}"
+                title = f"New Package Order: {plan_name or 'Subscription Plan'} by {name}"
                 body_lines = [
-                    f"Customer {name} submitted an order inquiry for package '{plan_name}'.",
+                    f"Customer {name} submitted an order for subscription package '{plan_name or 'Subscription Tier'}'.",
                     f"Organization: {org_name or 'N/A'} (Type: {org_type})",
                     f"Contact: Phone: {phone or 'N/A'} | Email: {email or 'N/A'}"
                 ]
@@ -66,6 +70,8 @@ def landing_page_view(request):
                     f"Organization Type: {org_type}",
                     f"Contact: Phone: {phone or 'N/A'} | Email: {email or 'N/A'}"
                 ]
+                if plan_name:
+                    body_lines.append(f"Interested in Plan: {plan_name}")
 
             if message_text:
                 body_lines.append(f"Notes / Student Volume: {message_text}")
@@ -86,10 +92,10 @@ def landing_page_view(request):
                 status='PENDING'
             )
 
-            if plan_code:
+            if is_package_order:
                 messages.success(
                     request,
-                    f"Thank you, {name}! Your inquiry for the '{plan_name}' package has been received. Our team will contact you shortly."
+                    f"Thank you, {name}! Your order inquiry for the '{plan_name}' package has been received. Our team will contact you shortly."
                 )
             else:
                 messages.success(

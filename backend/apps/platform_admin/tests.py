@@ -1190,6 +1190,7 @@ class PlatformNotificationAndLeadInquiryTests(TestCase):
     def test_landing_page_package_order_creates_notification(self):
         """Visitor selecting a subscription package on the landing page creates a PACKAGE_ORDER PlatformNotification."""
         response = self.client.post(reverse('landing_page'), {
+            'inquiry_type': 'PACKAGE_ORDER',
             'name': 'Suman Gurung',
             'email': 'suman@evereststudio.com.np',
             'phone': '9801987654',
@@ -1208,6 +1209,25 @@ class PlatformNotificationAndLeadInquiryTests(TestCase):
         self.assertEqual(notif.priority, 'HIGH')
         self.assertFalse(notif.is_read)
         self.assertEqual(notif.status, 'PENDING')
+
+    def test_demo_request_with_plan_selected_remains_demo_request(self):
+        """If prospect selects an interested plan in the demo modal, it remains a DEMO_REQUEST."""
+        response = self.client.post(reverse('landing_page'), {
+            'inquiry_type': 'DEMO_REQUEST',
+            'name': 'Ramesh Karki',
+            'email': 'ramesh@school.np',
+            'phone': '9812345678',
+            'org_name': 'Greenwood School',
+            'org_type': 'SCHOOL',
+            'plan_code': 'STUDIO_PRO',
+            'message': 'Curious about this tier.'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        notif = PlatformNotification.objects.filter(sender_name='Ramesh Karki').first()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.notification_type, 'DEMO_REQUEST')
+        self.assertIn('Interested in Plan: Photo Studio Pro', notif.message)
 
     def test_dashboard_displays_recent_inquiries_and_badge(self):
         """Dashboard renders incoming demo requests and package orders with contact details."""

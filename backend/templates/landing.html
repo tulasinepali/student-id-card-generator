@@ -398,7 +398,7 @@
                     <a href="{% url 'admin_login' %}" class="btn btn-light fw-bold px-3 py-2 text-dark border rounded-pill">
                         <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
                     </a>
-                    <button type="button" class="btn btn-primary fw-bold px-4 py-2 shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#demoModal">
+                    <button type="button" class="btn btn-primary fw-bold px-4 py-2 shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#demoModal" onclick="openDemoModal()">
                         Request Demo
                     </button>
                     {% endif %}
@@ -1193,7 +1193,7 @@
                 Join modern educational institutions and commercial printing studios cutting card generation turnaround from 3 weeks to 2 hours.
             </p>
             <div class="d-flex flex-wrap justify-content-center gap-3">
-                <button type="button" class="btn btn-primary btn-lg fw-bold px-4 py-3 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#demoModal">
+                <button type="button" class="btn btn-primary btn-lg fw-bold px-4 py-3 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#demoModal" onclick="openDemoModal()">
                     <i class="bi bi-send-fill me-2"></i> Request a Personalized Demo
                 </button>
                 <a href="{% url 'admin_login' %}" class="btn btn-outline-light btn-lg fw-bold px-4 py-3 rounded-pill">
@@ -1234,7 +1234,7 @@
                     <ul class="list-unstyled small vstack gap-2">
                         <li><a href="{% url 'admin_login' %}" class="text-secondary text-decoration-none">Organization Login</a></li>
                         <li><a href="{% url 'platform_admin:login' %}" class="text-secondary text-decoration-none">Platform Admin</a></li>
-                        <li><a href="#demoModal" data-bs-toggle="modal" class="text-secondary text-decoration-none">Request Demo</a></li>
+                        <li><a href="#demoModal" data-bs-toggle="modal" onclick="openDemoModal()" class="text-secondary text-decoration-none">Request Demo</a></li>
                     </ul>
                 </div>
 
@@ -1260,7 +1260,7 @@
     <div class="modal fade" id="demoModal" tabindex="-1" aria-labelledby="demoModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                <div class="modal-header bg-primary text-white border-0 py-3">
+                <div class="modal-header bg-primary text-white border-0 py-3" id="demoModalHeader">
                     <h5 class="modal-title fw-bold" id="demoModalLabel">
                         <i class="bi bi-send-fill me-2"></i> Request a System Demo
                     </h5>
@@ -1268,8 +1268,9 @@
                 </div>
                 <form method="POST" action="{% url 'landing_page' %}">
                     {% csrf_token %}
+                    <input type="hidden" name="inquiry_type" id="modalInquiryType" value="DEMO_REQUEST">
                     <div class="modal-body p-4">
-                        <p class="text-muted small mb-3">
+                        <p class="text-muted small mb-3" id="modalDescription">
                             Fill out the brief details below and our team will get in touch to set up your organization or commercial press account.
                         </p>
 
@@ -1304,7 +1305,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Interested Subscription Plan</label>
+                            <label class="form-label small fw-semibold" id="modalPlanLabel">Interested Subscription Plan</label>
                             <select name="plan_code" id="modalPlanSelect" class="form-select">
                                 <option value="">-- Select a Plan Tier --</option>
                                 {% for plan in plans %}
@@ -1320,7 +1321,7 @@
                     </div>
                     <div class="modal-footer bg-light border-0 py-3">
                         <button type="button" class="btn btn-outline-secondary fw-semibold rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4">Submit Demo Request</button>
+                        <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4" id="modalSubmitBtn">Submit Demo Request</button>
                     </div>
                 </form>
             </div>
@@ -1426,25 +1427,59 @@
             }
         });
 
-        // Pre-select plan in modal
+        // Dynamic Modal Handlers for Demo Requests vs Package Orders
+        function openDemoModal() {
+            const inqType = document.getElementById('modalInquiryType');
+            if (inqType) inqType.value = 'DEMO_REQUEST';
+
+            const header = document.getElementById('demoModalHeader');
+            if (header) header.className = 'modal-header bg-primary text-white border-0 py-3';
+
+            const title = document.getElementById('demoModalLabel');
+            if (title) title.innerHTML = '<i class="bi bi-send-fill me-2"></i> Request a System Demo';
+
+            const desc = document.getElementById('modalDescription');
+            if (desc) desc.innerText = 'Fill out the brief details below and our team will get in touch to set up your organization or commercial press account.';
+
+            const submitBtn = document.getElementById('modalSubmitBtn');
+            if (submitBtn) {
+                submitBtn.innerText = 'Submit Demo Request';
+                submitBtn.className = 'btn btn-primary fw-bold rounded-pill px-4';
+            }
+
+            const select = document.getElementById('modalPlanSelect');
+            if (select) select.value = '';
+        }
+
         function selectPlan(code, name) {
+            const inqType = document.getElementById('modalInquiryType');
+            if (inqType) inqType.value = 'PACKAGE_ORDER';
+
+            const header = document.getElementById('demoModalHeader');
+            if (header) header.className = 'modal-header bg-success text-white border-0 py-3';
+
+            const title = document.getElementById('demoModalLabel');
+            if (title) title.innerHTML = '<i class="bi bi-cart-check-fill me-2"></i> Order Package: ' + name;
+
+            const desc = document.getElementById('modalDescription');
+            if (desc) desc.innerHTML = 'You are placing an order inquiry for the <strong>' + name + '</strong> package. Please confirm your contact details below.';
+
+            const submitBtn = document.getElementById('modalSubmitBtn');
+            if (submitBtn) {
+                submitBtn.innerText = 'Confirm Package Order';
+                submitBtn.className = 'btn btn-success fw-bold rounded-pill px-4 shadow-sm';
+            }
+
             const select = document.getElementById('modalPlanSelect');
             if (select && code) {
                 select.value = code;
-            }
-            const title = document.getElementById('demoModalLabel');
-            if (title && name) {
-                title.innerHTML = '<i class="bi bi-cart-check-fill me-2"></i> Order Package: ' + name;
             }
         }
 
         const demoModalEl = document.getElementById('demoModal');
         if (demoModalEl) {
             demoModalEl.addEventListener('hidden.bs.modal', function () {
-                const title = document.getElementById('demoModalLabel');
-                if (title) {
-                    title.innerHTML = '<i class="bi bi-send-fill me-2"></i> Request a System Demo';
-                }
+                openDemoModal();
             });
         }
     </script>
