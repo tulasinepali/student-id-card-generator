@@ -31,6 +31,8 @@ from apps.platform_admin.views import (
     notification_mark_read_view,
     notifications_mark_all_read_view,
     notification_update_status_view,
+    notification_delete_view,
+    notifications_clear_read_view,
 )
 
 app_name = 'platform_admin'
@@ -48,6 +50,8 @@ urlpatterns = [
     path('notifications/<int:pk>/mark-read/', notification_mark_read_view, name='notification_mark_read'),
     path('notifications/mark-all-read/', notifications_mark_all_read_view, name='notifications_mark_all_read'),
     path('notifications/<int:pk>/status/', notification_update_status_view, name='notification_update_status'),
+    path('notifications/<int:pk>/delete/', notification_delete_view, name='notification_delete'),
+    path('notifications/clear-read/', notifications_clear_read_view, name='notifications_clear_read'),
 
     # Organizations
     path('organizations/', organizations_list_view, name='organizations_list'),

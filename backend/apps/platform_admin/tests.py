@@ -1395,5 +1395,29 @@ class PlatformNotificationAndLeadInquiryTests(TestCase):
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
 
+    def test_delete_single_notification(self):
+        """Super admin can delete a single notification."""
+        n = PlatformNotification.objects.create(title='To be deleted', is_read=False)
+        self.client.force_login(self.superadmin)
+
+        resp = self.client.get(reverse('platform_admin:notification_delete', args=[n.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(PlatformNotification.objects.filter(pk=n.pk).exists())
+
+    def test_clear_read_notifications(self):
+        """Super admin can bulk clear all read notifications while preserving unread ones."""
+        n_read1 = PlatformNotification.objects.create(title='Read 1', is_read=True)
+        n_read2 = PlatformNotification.objects.create(title='Read 2', is_read=True)
+        n_unread = PlatformNotification.objects.create(title='Still Unread', is_read=False)
+
+        self.client.force_login(self.superadmin)
+        resp = self.client.get(reverse('platform_admin:notifications_clear_read'))
+        self.assertEqual(resp.status_code, 302)
+
+        self.assertFalse(PlatformNotification.objects.filter(pk=n_read1.pk).exists())
+        self.assertFalse(PlatformNotification.objects.filter(pk=n_read2.pk).exists())
+        self.assertTrue(PlatformNotification.objects.filter(pk=n_unread.pk).exists())
+
+
 
 

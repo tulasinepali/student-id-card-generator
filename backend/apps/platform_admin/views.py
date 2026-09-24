@@ -1524,3 +1524,29 @@ def notification_update_status_view(request, pk):
     next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
     return redirect(next_url)
 
+
+@super_admin_required
+def notification_delete_view(request, pk):
+    """Permanently deletes a single notification."""
+    notification = get_object_or_404(PlatformNotification, pk=pk)
+    title = notification.title
+    notification.delete()
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        unread_count = PlatformNotification.objects.filter(is_read=False).count()
+        return JsonResponse({'success': True, 'unread_count': unread_count})
+
+    messages.success(request, f"Notification '{title}' deleted successfully.")
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
+    return redirect(next_url)
+
+
+@super_admin_required
+def notifications_clear_read_view(request):
+    """Deletes all notifications that have been marked as read."""
+    count, _ = PlatformNotification.objects.filter(is_read=True).delete()
+    messages.success(request, f"Deleted {count} read notification(s).")
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
+    return redirect(next_url)
+
+
