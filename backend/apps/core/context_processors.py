@@ -66,6 +66,16 @@ def school_settings_context(request):
     site_developed_by = platform_settings.developed_by if platform_settings else settings.APP_DESIGNER_NAME
     site_developed_by_url = platform_settings.developed_by_url if platform_settings else settings.APP_WEBSITE
 
+    platform_unread_notifications_count = 0
+    platform_latest_notifications = []
+    if hasattr(request, 'user') and request.user.is_authenticated and (request.user.is_superuser or getattr(request.user, 'role', '') == 'SUPER_ADMIN'):
+        try:
+            from apps.platform_admin.models import PlatformNotification
+            platform_unread_notifications_count = PlatformNotification.objects.filter(is_read=False).count()
+            platform_latest_notifications = list(PlatformNotification.objects.all().order_by('-created_at')[:6])
+        except Exception:
+            pass
+
     return {
         'school': effective_school,
         'organization': org,
@@ -75,6 +85,8 @@ def school_settings_context(request):
         'active_client_id': active_client.id if active_client else None,
         'effective_uses_mobile_app': effective_uses_mobile_app,
         'platform_settings': platform_settings,
+        'platform_unread_notifications_count': platform_unread_notifications_count,
+        'platform_latest_notifications': platform_latest_notifications,
         'site_name': site_name,
         'site_favicon': site_favicon,
         'site_copyright': site_copyright,

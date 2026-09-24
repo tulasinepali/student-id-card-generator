@@ -1,0 +1,356 @@
+{% extends 'platform_admin/base_platform.html' %}
+
+{% block title %}Notifications & Inquiries{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h4 class="fw-bold mb-1 text-dark">Platform Notifications & Lead Inquiries</h4>
+        <p class="text-muted small mb-0">Track demo requests, package orders, subscription alerts, and tenant lifecycle events.</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if unread_count > 0 %}
+        <a href="{% url 'platform_admin:notifications_mark_all_read' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary fw-semibold shadow-xs">
+            <i class="bi bi-check2-all me-1"></i> Mark All as Read
+        </a>
+        {% endif %}
+        <a href="{% url 'platform_admin:dashboard' %}" class="btn btn-primary fw-semibold shadow-xs">
+            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Metric Counters Row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border shadow-xs h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Unread Alerts</span>
+                    <h3 class="fw-bold my-1 {% if unread_count > 0 %}text-danger{% else %}text-muted{% endif %}">{{ unread_count }}</h3>
+                    <small class="text-muted">Awaiting review</small>
+                </div>
+                <div class="rounded-3 bg-danger-subtle text-danger p-3">
+                    <i class="bi bi-bell-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border shadow-xs h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Pending Follow-ups</span>
+                    <h3 class="fw-bold my-1 text-warning">{{ pending_inquiries_count }}</h3>
+                    <small class="text-muted">Needs call / contact</small>
+                </div>
+                <div class="rounded-3 bg-warning-subtle text-warning p-3">
+                    <i class="bi bi-telephone-inbound fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border shadow-xs h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Package Orders</span>
+                    <h3 class="fw-bold my-1 text-success">{{ package_count }}</h3>
+                    <small class="text-muted">Paid tier inquiries</small>
+                </div>
+                <div class="rounded-3 bg-success-subtle text-success p-3">
+                    <i class="bi bi-cart-check-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border shadow-xs h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Demo Requests</span>
+                    <h3 class="fw-bold my-1 text-primary">{{ demo_count }}</h3>
+                    <small class="text-muted">Test-drive requests</small>
+                </div>
+                <div class="rounded-3 bg-primary-subtle text-primary p-3">
+                    <i class="bi bi-send-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search Toolbar -->
+<div class="card shadow-xs border mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{% url 'platform_admin:notifications_list' %}" class="row g-2 align-items-center">
+            <!-- Search Query -->
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control bg-light border-start-0" placeholder="Search name, phone, school, plan..." value="{{ search }}">
+                </div>
+            </div>
+
+            <!-- Type Filter -->
+            <div class="col-sm-6 col-md-3">
+                <select name="type" class="form-select form-select-sm">
+                    <option value="">All Notification Types</option>
+                    <option value="INQUIRIES" {% if type_filter == 'INQUIRIES' %}selected{% endif %}>All Leads (Demo + Packages)</option>
+                    <option value="PACKAGE_ORDER" {% if type_filter == 'PACKAGE_ORDER' %}selected{% endif %}>Package Orders Only</option>
+                    <option value="DEMO_REQUEST" {% if type_filter == 'DEMO_REQUEST' %}selected{% endif %}>Demo Requests Only</option>
+                    <option value="NEW_ORGANIZATION" {% if type_filter == 'NEW_ORGANIZATION' %}selected{% endif %}>New Organizations</option>
+                    <option value="SUBSCRIPTION_EXPIRING" {% if type_filter == 'SUBSCRIPTION_EXPIRING' %}selected{% endif %}>Expiring Subscriptions</option>
+                    <option value="SECURITY_ALERT" {% if type_filter == 'SECURITY_ALERT' %}selected{% endif %}>Security Alerts</option>
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="col-sm-6 col-md-2">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Lead Statuses</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending Follow-up</option>
+                    <option value="CONTACTED" {% if status_filter == 'CONTACTED' %}selected{% endif %}>Contacted / In Progress</option>
+                    <option value="RESOLVED" {% if status_filter == 'RESOLVED' %}selected{% endif %}>Completed / Resolved</option>
+                    <option value="DISMISSED" {% if status_filter == 'DISMISSED' %}selected{% endif %}>Dismissed</option>
+                </select>
+            </div>
+
+            <!-- Read State Filter -->
+            <div class="col-sm-6 col-md-2">
+                <select name="read" class="form-select form-select-sm">
+                    <option value="">All Read States</option>
+                    <option value="unread" {% if read_filter == 'unread' %}selected{% endif %}>Unread Only</option>
+                    <option value="read" {% if read_filter == 'read' %}selected{% endif %}>Read Only</option>
+                </select>
+            </div>
+
+            <div class="col-sm-6 col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold">Filter</button>
+                {% if search or type_filter or status_filter or read_filter %}
+                <a href="{% url 'platform_admin:notifications_list' %}" class="btn btn-sm btn-light border text-muted" title="Clear Filters">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Main Notifications List -->
+<div class="card shadow-xs border">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">
+            <i class="bi bi-inbox text-primary me-2"></i>Notifications Log
+            <span class="text-muted fw-normal small">({{ page_obj.paginator.count }} records)</span>
+        </h6>
+        <div class="small text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</div>
+    </div>
+
+    <div class="list-group list-group-flush">
+        {% for notif in notifications %}
+        <div class="list-group-item p-3 {% if not notif.is_read %}bg-light bg-opacity-75{% endif %} border-bottom">
+            <div class="row align-items-start g-3">
+                <!-- Icon & Badges -->
+                <div class="col-auto">
+                    <div class="rounded-circle p-2 bg-{{ notif.badge_color }}-subtle text-{{ notif.badge_color }} d-flex align-items-center justify-content-center shadow-xs" style="width: 42px; height: 42px;">
+                        <i class="bi {{ notif.icon_class }} fs-5"></i>
+                    </div>
+                </div>
+
+                <!-- Main Details -->
+                <div class="col">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span class="badge bg-{{ notif.badge_color }}-subtle text-{{ notif.badge_color }} border border-{{ notif.badge_color }}-subtle fw-bold">
+                            {{ notif.get_notification_type_display }}
+                        </span>
+
+                        {% if not notif.is_read %}
+                        <span class="badge bg-danger rounded-pill">UNREAD</span>
+                        {% endif %}
+
+                        {% if notif.plan_name %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <i class="bi bi-cart me-1"></i>{{ notif.plan_name }}
+                        </span>
+                        {% endif %}
+
+                        {% if notif.status == 'PENDING' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Status: Pending Follow-up</span>
+                        {% elif notif.status == 'CONTACTED' %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">Status: Contacted</span>
+                        {% elif notif.status == 'RESOLVED' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Status: Resolved</span>
+                        {% elif notif.status == 'DISMISSED' %}
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Status: Dismissed</span>
+                        {% endif %}
+
+                        <span class="text-muted small ms-auto">
+                            <i class="bi bi-clock me-1"></i>{{ notif.created_at|date:"M d, Y, h:i A" }} ({{ notif.created_at|timesince }} ago)
+                        </span>
+                    </div>
+
+                    <h6 class="fw-bold text-dark mb-1">{{ notif.title }}</h6>
+                    <p class="text-muted small mb-2" style="white-space: pre-line;">{{ notif.message }}</p>
+
+                    <!-- Contact Bar if Prospect / Lead -->
+                    {% if notif.sender_name or notif.sender_phone or notif.sender_email or notif.organization_name %}
+                    <div class="p-2 rounded bg-light border d-flex flex-wrap gap-3 align-items-center small text-secondary mb-2">
+                        {% if notif.sender_name %}
+                        <div>
+                            <strong class="text-dark"><i class="bi bi-person me-1"></i>Contact:</strong> {{ notif.sender_name }}
+                        </div>
+                        {% endif %}
+
+                        {% if notif.organization_name %}
+                        <div>
+                            <strong class="text-dark"><i class="bi bi-building me-1"></i>Organization:</strong> {{ notif.organization_name }} ({{ notif.organization_type|default:"School" }})
+                        </div>
+                        {% endif %}
+
+                        {% if notif.sender_phone %}
+                        <div>
+                            <strong class="text-dark"><i class="bi bi-telephone me-1"></i>Phone:</strong>
+                            <a href="tel:{{ notif.sender_phone }}" class="text-primary fw-semibold text-decoration-none">{{ notif.sender_phone }}</a>
+                        </div>
+                        {% endif %}
+
+                        {% if notif.sender_email %}
+                        <div>
+                            <strong class="text-dark"><i class="bi bi-envelope me-1"></i>Email:</strong>
+                            <a href="mailto:{{ notif.sender_email }}" class="text-primary fw-semibold text-decoration-none">{{ notif.sender_email }}</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if notif.notes %}
+                    <div class="small bg-warning-subtle text-warning-emphasis border border-warning-subtle p-2 rounded mb-2">
+                        <strong><i class="bi bi-sticky me-1"></i>Internal Follow-up Notes:</strong> {{ notif.notes }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Controls -->
+                <div class="col-auto text-end">
+                    <div class="d-flex flex-column gap-1">
+                        {% if not notif.is_read %}
+                        <a href="{% url 'platform_admin:notification_mark_read' notif.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary" title="Mark as Read">
+                            <i class="bi bi-check2 me-1"></i> Mark Read
+                        </a>
+                        {% endif %}
+
+                        {% if notif.sender_phone %}
+                        <a href="tel:{{ notif.sender_phone }}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-telephone-outbound me-1"></i> Call Lead
+                        </a>
+                        {% endif %}
+
+                        {% if notif.sender_email %}
+                        <a href="mailto:{{ notif.sender_email }}?subject=CardFlow ID - In response to your inquiry" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-envelope me-1"></i> Send Email
+                        </a>
+                        {% endif %}
+
+                        {% if notif.link %}
+                        <a href="{{ notif.link }}" class="btn btn-sm btn-outline-dark">
+                            <i class="bi bi-arrow-up-right-square me-1"></i> View Target
+                        </a>
+                        {% endif %}
+
+                        <!-- Status Update Button triggers Modal -->
+                        <button type="button" class="btn btn-sm btn-light border text-dark" data-bs-toggle="modal" data-bs-target="#statusModal{{ notif.pk }}">
+                            <i class="bi bi-pencil-square me-1"></i> Update Status
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Follow-up Status Modal -->
+        <div class="modal fade" id="statusModal{{ notif.pk }}" tabindex="-1" aria-labelledby="statusModalLabel{{ notif.pk }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4">
+                    <div class="modal-header bg-light border-bottom py-3">
+                        <h6 class="modal-title fw-bold" id="statusModalLabel{{ notif.pk }}">
+                            <i class="bi bi-pencil-square me-2"></i>Update Lead Status & Notes
+                        </h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" action="{% url 'platform_admin:notification_update_status' notif.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Lead / Organization</label>
+                                <input type="text" class="form-control form-control-sm bg-light" value="{{ notif.sender_name }} ({{ notif.organization_name|default:'N/A' }})" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Follow-up Workflow Status</label>
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="PENDING" {% if notif.status == 'PENDING' %}selected{% endif %}>Pending Follow-up</option>
+                                    <option value="CONTACTED" {% if notif.status == 'CONTACTED' %}selected{% endif %}>Contacted / In Progress</option>
+                                    <option value="RESOLVED" {% if notif.status == 'RESOLVED' %}selected{% endif %}>Completed / Converted to Customer</option>
+                                    <option value="DISMISSED" {% if notif.status == 'DISMISSED' %}selected{% endif %}>Dismissed / Not Interested</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Internal Notes / Call Summary</label>
+                                <textarea name="notes" class="form-control form-control-sm" rows="3" placeholder="e.g. Spoke with Principal Sharma. Scheduled onboarding call for Friday...">{{ notif.notes }}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light border-0 py-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-semibold">Save Follow-up</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+            <h6 class="fw-bold">No Notifications Found</h6>
+            <p class="small text-muted mb-0">No notifications match your current filter parameters.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <div class="small text-muted">
+            Showing records {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if read_filter %}&read={{ read_filter }}{% endif %}">&laquo; Previous</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if read_filter %}&read={{ read_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if read_filter %}&read={{ read_filter }}{% endif %}">Next &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

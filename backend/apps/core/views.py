@@ -14,7 +14,7 @@ from apps.students.models import Student
 from apps.idcards.models import IDCard, IDCardTemplate, PrintLayout
 from apps.core.services.audit import log_action
 from apps.students.services.photo_service import process_student_photo
-from apps.platform_admin.models import Organization, OrganizationClient, SubscriptionPlan
+from apps.platform_admin.models import Organization, OrganizationClient, SubscriptionPlan, PlatformNotification
 from apps.core.utils import get_current_organization
 
 
@@ -45,10 +45,57 @@ def landing_page_view(request):
         message_text = request.POST.get('message', '').strip()
 
         if name and (email or phone):
-            messages.success(
-                request,
-                f"Thank you, {name}! Your demo request for '{org_name or 'your organization'}' has been received. Our team will contact you shortly."
+            plan_obj = SubscriptionPlan.objects.filter(code=plan_code).first() if plan_code else None
+            plan_name = plan_obj.name if plan_obj else (plan_code if plan_code else "")
+
+            if plan_code:
+                notif_type = 'PACKAGE_ORDER'
+                priority = 'HIGH'
+                title = f"New Package Order: {plan_name} by {name}"
+                body_lines = [
+                    f"Customer {name} submitted an order inquiry for package '{plan_name}'.",
+                    f"Organization: {org_name or 'N/A'} (Type: {org_type})",
+                    f"Contact: Phone: {phone or 'N/A'} | Email: {email or 'N/A'}"
+                ]
+            else:
+                notif_type = 'DEMO_REQUEST'
+                priority = 'NORMAL'
+                title = f"New Demo Request: {org_name or name}"
+                body_lines = [
+                    f"Prospect {name} requested a system demo for '{org_name or 'their institution'}'.",
+                    f"Organization Type: {org_type}",
+                    f"Contact: Phone: {phone or 'N/A'} | Email: {email or 'N/A'}"
+                ]
+
+            if message_text:
+                body_lines.append(f"Notes / Student Volume: {message_text}")
+
+            PlatformNotification.objects.create(
+                notification_type=notif_type,
+                priority=priority,
+                title=title,
+                message="\n".join(body_lines),
+                sender_name=name,
+                sender_email=email,
+                sender_phone=phone,
+                organization_name=org_name,
+                organization_type=org_type,
+                plan_code=plan_code,
+                plan_name=plan_name,
+                notes=message_text,
+                status='PENDING'
             )
+
+            if plan_code:
+                messages.success(
+                    request,
+                    f"Thank you, {name}! Your inquiry for the '{plan_name}' package has been received. Our team will contact you shortly."
+                )
+            else:
+                messages.success(
+                    request,
+                    f"Thank you, {name}! Your demo request for '{org_name or 'your organization'}' has been received. Our team will contact you shortly."
+                )
         else:
             messages.error(request, "Please provide your name and either an email or phone number to request a demo.")
         return redirect('landing_page')

@@ -27,6 +27,10 @@ from apps.platform_admin.views import (
     audit_logs_view,
     global_search_view,
     platform_settings_view,
+    notifications_list_view,
+    notification_mark_read_view,
+    notifications_mark_all_read_view,
+    notification_update_status_view,
 )
 
 app_name = 'platform_admin'
@@ -38,6 +42,12 @@ urlpatterns = [
 
     # Dashboard
     path('', dashboard_view, name='dashboard'),
+
+    # Notifications & Inquiries
+    path('notifications/', notifications_list_view, name='notifications_list'),
+    path('notifications/<int:pk>/mark-read/', notification_mark_read_view, name='notification_mark_read'),
+    path('notifications/mark-all-read/', notifications_mark_all_read_view, name='notifications_mark_all_read'),
+    path('notifications/<int:pk>/status/', notification_update_status_view, name='notification_update_status'),
 
     # Organizations
     path('organizations/', organizations_list_view, name='organizations_list'),

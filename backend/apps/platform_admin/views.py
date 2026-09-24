@@ -6,7 +6,8 @@ from django.db import transaction
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
+from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.core.models import School
@@ -20,6 +21,7 @@ from apps.platform_admin.models import (
     PlatformAuditLog,
     SupportSession,
     PlatformSetting,
+    PlatformNotification,
 )
 from apps.platform_admin.decorators import super_admin_required
 
@@ -102,6 +104,38 @@ def logout_view(request):
 # 2. EXECUTIVE DASHBOARD
 # ==========================================
 
+def check_and_generate_subscription_alerts():
+    """
+    Scans for organizations whose subscription will expire within 7 days
+    and creates actionable PlatformNotification records if not already alerted within the past 7 days.
+    """
+    today = date.today()
+    in_7_days = today + timedelta(days=7)
+    expiring_soon = OrganizationSubscription.objects.filter(
+        status__in=['ACTIVE', 'TRIAL'],
+        expiry_date__range=[today, in_7_days]
+    ).select_related('organization', 'plan')
+
+    for sub in expiring_soon:
+        already_notified = PlatformNotification.objects.filter(
+            notification_type='SUBSCRIPTION_EXPIRING',
+            organization_name=sub.organization.name,
+            created_at__gte=timezone.now() - timedelta(days=7)
+        ).exists()
+        if not already_notified:
+            PlatformNotification.objects.create(
+                notification_type='SUBSCRIPTION_EXPIRING',
+                priority='HIGH',
+                title=f"Subscription Expiring: {sub.organization.name}",
+                message=f"{sub.organization.name} ({sub.plan.name}) will expire on {sub.expiry_date} ({sub.days_remaining} days left). Contact them for renewal.",
+                organization_name=sub.organization.name,
+                organization_type=sub.organization.org_type,
+                plan_name=sub.plan.name,
+                link=f"/platform-admin/organizations/{sub.organization.id}/subscription/",
+                status='PENDING'
+            )
+
+
 @super_admin_required
 def dashboard_view(request):
     """
@@ -111,6 +145,9 @@ def dashboard_view(request):
     today = date.today()
     in_7_days = today + timedelta(days=7)
     in_30_days = today + timedelta(days=30)
+
+    # Trigger proactive check for expiring subscriptions
+    check_and_generate_subscription_alerts()
 
     # 1. Organization statistics
     total_orgs = Organization.objects.count()
@@ -154,6 +191,19 @@ def dashboard_view(request):
         expiry_date__range=[today, in_30_days]
     ).select_related('organization', 'plan').order_by('expiry_date')[:5]
 
+    # 6. Notifications & Inquiries (Demo Requests, Package Orders & Alerts)
+    recent_inquiries = PlatformNotification.objects.filter(
+        notification_type__in=['DEMO_REQUEST', 'PACKAGE_ORDER']
+    ).order_by('-created_at')[:8]
+    recent_notifications = PlatformNotification.objects.all().order_by('-created_at')[:8]
+    unread_notifications_count = PlatformNotification.objects.filter(is_read=False).count()
+    pending_inquiries_count = PlatformNotification.objects.filter(
+        notification_type__in=['DEMO_REQUEST', 'PACKAGE_ORDER'],
+        status='PENDING'
+    ).count()
+    demo_orders_count = PlatformNotification.objects.filter(notification_type='DEMO_REQUEST').count()
+    package_orders_count = PlatformNotification.objects.filter(notification_type='PACKAGE_ORDER').count()
+
     return render(request, 'platform_admin/dashboard.html', {
         'total_orgs': total_orgs,
         'active_orgs': active_orgs,
@@ -173,6 +223,12 @@ def dashboard_view(request):
         'recent_orgs': recent_orgs,
         'recent_logs': recent_logs,
         'expiring_list': expiring_list,
+        'recent_inquiries': recent_inquiries,
+        'recent_notifications': recent_notifications,
+        'unread_notifications_count': unread_notifications_count,
+        'pending_inquiries_count': pending_inquiries_count,
+        'demo_orders_count': demo_orders_count,
+        'package_orders_count': package_orders_count,
     })
 
 
@@ -389,6 +445,24 @@ def organization_create_view(request):
                     target=org.org_id,
                     description=f"Created organization '{org.name}' ({org.org_id}) with plan {selected_plan.name}. Primary admin: {admin_user.username}",
                     request=request
+                )
+
+                # 6. Platform Notification
+                PlatformNotification.objects.create(
+                    notification_type='NEW_ORGANIZATION',
+                    priority='NORMAL',
+                    title=f"New Organization Onboarded: {org.name} ({org.org_id})",
+                    message=f"Organization '{org.name}' [{org.org_id}] ({org.get_org_type_display()}) was created under the '{selected_plan.name}' tier by super admin {request.user.username}.",
+                    sender_name=admin_name,
+                    sender_email=admin_email,
+                    sender_phone=admin_phone,
+                    organization_name=org.name,
+                    organization_type=org.org_type,
+                    plan_code=selected_plan.code,
+                    plan_name=selected_plan.name,
+                    link=f"/platform-admin/organizations/{org.id}/",
+                    status='RESOLVED',
+                    is_read=False
                 )
 
             messages.success(request, f"Organization '{org.name}' ({org.org_id}) created successfully!")
@@ -1326,3 +1400,127 @@ def platform_settings_view(request):
         return redirect('platform_admin:settings')
 
     return render(request, 'platform_admin/settings.html', {'settings_obj': settings_obj})
+
+
+# ==========================================
+# 8. NOTIFICATIONS & INQUIRIES MANAGEMENT
+# ==========================================
+
+@super_admin_required
+def notifications_list_view(request):
+    """
+    Super Admin Notification Center & Lead Inquiries Console.
+    Allows filtering by type, status, read-state, and text search.
+    """
+    check_and_generate_subscription_alerts()
+    qs = PlatformNotification.objects.all()
+
+    type_filter = request.GET.get('type', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    read_filter = request.GET.get('read', '').strip()
+    search = request.GET.get('search', '').strip()
+
+    if type_filter:
+        if type_filter == 'INQUIRIES':
+            qs = qs.filter(notification_type__in=['DEMO_REQUEST', 'PACKAGE_ORDER'])
+        else:
+            qs = qs.filter(notification_type=type_filter)
+
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+
+    if read_filter == 'unread':
+        qs = qs.filter(is_read=False)
+    elif read_filter == 'read':
+        qs = qs.filter(is_read=True)
+
+    if search:
+        qs = qs.filter(
+            Q(title__icontains=search) |
+            Q(message__icontains=search) |
+            Q(sender_name__icontains=search) |
+            Q(sender_email__icontains=search) |
+            Q(sender_phone__icontains=search) |
+            Q(organization_name__icontains=search) |
+            Q(plan_name__icontains=search)
+        )
+
+    # Metrics
+    total_notifications = PlatformNotification.objects.count()
+    unread_count = PlatformNotification.objects.filter(is_read=False).count()
+    pending_inquiries_count = PlatformNotification.objects.filter(
+        notification_type__in=['DEMO_REQUEST', 'PACKAGE_ORDER'],
+        status='PENDING'
+    ).count()
+    demo_count = PlatformNotification.objects.filter(notification_type='DEMO_REQUEST').count()
+    package_count = PlatformNotification.objects.filter(notification_type='PACKAGE_ORDER').count()
+
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'platform_admin/notifications_list.html', {
+        'page_obj': page_obj,
+        'notifications': page_obj.object_list,
+        'type_filter': type_filter,
+        'status_filter': status_filter,
+        'read_filter': read_filter,
+        'search': search,
+        'total_notifications': total_notifications,
+        'unread_count': unread_count,
+        'pending_inquiries_count': pending_inquiries_count,
+        'demo_count': demo_count,
+        'package_count': package_count,
+        'notification_types': PlatformNotification.NOTIFICATION_TYPES,
+        'status_choices': PlatformNotification.STATUS_CHOICES,
+    })
+
+
+@super_admin_required
+def notification_mark_read_view(request, pk):
+    """Marks a single notification as read or toggles status."""
+    notification = get_object_or_404(PlatformNotification, pk=pk)
+    notification.mark_as_read()
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        unread_count = PlatformNotification.objects.filter(is_read=False).count()
+        return JsonResponse({'success': True, 'unread_count': unread_count})
+
+    messages.success(request, f"Marked notification '{notification.title}' as read.")
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
+    return redirect(next_url)
+
+
+@super_admin_required
+def notifications_mark_all_read_view(request):
+    """Marks all unread notifications as read."""
+    PlatformNotification.objects.filter(is_read=False).update(
+        is_read=True,
+        read_at=timezone.now()
+    )
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        return JsonResponse({'success': True, 'unread_count': 0})
+
+    messages.success(request, "All notifications have been marked as read.")
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
+    return redirect(next_url)
+
+
+@super_admin_required
+def notification_update_status_view(request, pk):
+    """Updates lead/inquiry workflow status and appends internal notes."""
+    notification = get_object_or_404(PlatformNotification, pk=pk)
+    if request.method == 'POST':
+        new_status = request.POST.get('status', notification.status)
+        new_notes = request.POST.get('notes', '').strip()
+        if new_status in dict(PlatformNotification.STATUS_CHOICES):
+            notification.status = new_status
+        if new_notes:
+            notification.notes = new_notes
+        notification.mark_as_read()
+        notification.save()
+        messages.success(request, f"Status for '{notification.title}' updated to '{notification.get_status_display()}'.")
+
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or reverse('platform_admin:notifications_list')
+    return redirect(next_url)
+

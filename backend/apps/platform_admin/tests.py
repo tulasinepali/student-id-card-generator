@@ -13,6 +13,7 @@ from apps.platform_admin.models import (
     SupportSession,
     PlatformSetting,
     OrganizationClient,
+    PlatformNotification,
 )
 
 
@@ -1127,5 +1128,252 @@ class StudioMultiClientArchitectureTests(TestCase):
         self.client.force_login(self.studio_user)
         resp = self.client.get(f'/clients/{other_client.id}/delete/')
         self.assertEqual(resp.status_code, 404)
+
+
+class PlatformNotificationAndLeadInquiryTests(TestCase):
+    """
+    Tests for Super Admin Notification System & Lead Management:
+    - Landing page Demo Requests and Package Orders create PlatformNotification records.
+    - Super Admin dashboard displays unread badge, incoming inquiries, and quick actions.
+    - Expiring subscriptions auto-trigger alerts.
+    - Notification management: filtering, mark as read, workflow status updates.
+    - Security: Non-superadmins are restricted.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.superadmin = User.objects.create_superuser(
+            username='super_notify_admin',
+            email='super@notify.io',
+            password='Password123!',
+            role='SUPER_ADMIN'
+        )
+
+        self.teacher = User.objects.create_user(
+            username='regular_teacher_notify',
+            email='teacher@school.edu.np',
+            password='Password123!',
+            role='TEACHER'
+        )
+
+        self.plan = SubscriptionPlan.objects.create(
+            name='Photo Studio Pro',
+            code='STUDIO_PRO',
+            price_per_year=15000.00,
+            max_clients=10,
+            max_students=5000,
+            max_staff=20
+        )
+
+    def test_landing_page_demo_request_creates_notification(self):
+        """Visitor submitting the landing page demo form creates a DEMO_REQUEST PlatformNotification."""
+        response = self.client.post(reverse('landing_page'), {
+            'name': 'Bikash Shrestha',
+            'email': 'bikash@mountview.edu.np',
+            'phone': '9841234567',
+            'org_name': 'Mount View Academy',
+            'org_type': 'SCHOOL',
+            'plan_code': '',
+            'message': 'We have 850 students and need cards printed by next month.'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        notif = PlatformNotification.objects.filter(sender_name='Bikash Shrestha').first()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.notification_type, 'DEMO_REQUEST')
+        self.assertEqual(notif.organization_name, 'Mount View Academy')
+        self.assertEqual(notif.sender_phone, '9841234567')
+        self.assertEqual(notif.sender_email, 'bikash@mountview.edu.np')
+        self.assertFalse(notif.is_read)
+        self.assertEqual(notif.status, 'PENDING')
+        self.assertIn('850 students', notif.notes)
+
+    def test_landing_page_package_order_creates_notification(self):
+        """Visitor selecting a subscription package on the landing page creates a PACKAGE_ORDER PlatformNotification."""
+        response = self.client.post(reverse('landing_page'), {
+            'name': 'Suman Gurung',
+            'email': 'suman@evereststudio.com.np',
+            'phone': '9801987654',
+            'org_name': 'Everest Photo Press',
+            'org_type': 'STUDIO_PRESS',
+            'plan_code': 'STUDIO_PRO',
+            'message': 'Looking to manage 5 school clients with batch card export.'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        notif = PlatformNotification.objects.filter(sender_name='Suman Gurung').first()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.notification_type, 'PACKAGE_ORDER')
+        self.assertEqual(notif.plan_code, 'STUDIO_PRO')
+        self.assertEqual(notif.plan_name, 'Photo Studio Pro')
+        self.assertEqual(notif.priority, 'HIGH')
+        self.assertFalse(notif.is_read)
+        self.assertEqual(notif.status, 'PENDING')
+
+    def test_dashboard_displays_recent_inquiries_and_badge(self):
+        """Dashboard renders incoming demo requests and package orders with contact details."""
+        # Create an inquiry
+        PlatformNotification.objects.create(
+            notification_type='PACKAGE_ORDER',
+            priority='HIGH',
+            title='New Package Order: Photo Studio Pro by Suman Gurung',
+            message='Inquiry for Photo Studio Pro',
+            sender_name='Suman Gurung',
+            sender_phone='9801987654',
+            sender_email='suman@evereststudio.com.np',
+            organization_name='Everest Photo Press',
+            plan_name='Photo Studio Pro',
+            plan_code='STUDIO_PRO',
+            status='PENDING'
+        )
+
+        self.client.force_login(self.superadmin)
+        response = self.client.get(reverse('platform_admin:dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Incoming Demo Requests & Package Orders')
+        self.assertContains(response, 'Suman Gurung')
+        self.assertContains(response, 'Everest Photo Press')
+        self.assertContains(response, '9801987654')
+        self.assertContains(response, 'Photo Studio Pro')
+
+    def test_organization_creation_triggers_notification(self):
+        """Creating an organization in the platform admin triggers a NEW_ORGANIZATION notification."""
+        self.client.force_login(self.superadmin)
+        response = self.client.post(reverse('platform_admin:organization_create'), {
+            'name': 'Himalayan High School',
+            'org_type': 'SCHOOL',
+            'admin_name': 'Anil Sharma',
+            'admin_username': 'anil_admin',
+            'admin_email': 'anil@himalayan.edu.np',
+            'admin_password': 'AdminPassword123!',
+            'plan': self.plan.id,
+            'sub_status': 'ACTIVE',
+        })
+        self.assertEqual(response.status_code, 302)
+
+        notif = PlatformNotification.objects.filter(
+            notification_type='NEW_ORGANIZATION',
+            organization_name='Himalayan High School'
+        ).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Himalayan High School', notif.title)
+        self.assertEqual(notif.status, 'RESOLVED')
+
+    def test_expiring_subscription_generates_alert(self):
+        """Expiring subscriptions (within 7 days) automatically generate SUBSCRIPTION_EXPIRING notifications."""
+        org = Organization.objects.create(name='Patan College', org_type='COLLEGE')
+        OrganizationSubscription.objects.create(
+            organization=org,
+            plan=self.plan,
+            start_date=date.today() - timedelta(days=360),
+            expiry_date=date.today() + timedelta(days=4),  # Expiring in 4 days
+            status='ACTIVE'
+        )
+
+        self.client.force_login(self.superadmin)
+        response = self.client.get(reverse('platform_admin:dashboard'))
+        self.assertEqual(response.status_code, 200)
+
+        notif = PlatformNotification.objects.filter(
+            notification_type='SUBSCRIPTION_EXPIRING',
+            organization_name='Patan College'
+        ).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Patan College', notif.title)
+        self.assertEqual(notif.priority, 'HIGH')
+
+    def test_notifications_list_view_and_filtering(self):
+        """Notifications console supports filtering by type, status, and search."""
+        n1 = PlatformNotification.objects.create(
+            notification_type='DEMO_REQUEST',
+            title='Demo Request 1',
+            sender_name='Gopal KC',
+            organization_name='Gopal Academy',
+            status='PENDING'
+        )
+        n2 = PlatformNotification.objects.create(
+            notification_type='PACKAGE_ORDER',
+            title='Order 1',
+            sender_name='Hari Silwal',
+            organization_name='Hari Press',
+            status='CONTACTED'
+        )
+
+        self.client.force_login(self.superadmin)
+        url = reverse('platform_admin:notifications_list')
+
+        # Filter by type DEMO_REQUEST
+        resp = self.client.get(url, {'type': 'DEMO_REQUEST'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Gopal KC')
+        self.assertNotContains(resp, 'Hari Silwal')
+
+        # Filter by status CONTACTED
+        resp = self.client.get(url, {'status': 'CONTACTED'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Hari Silwal')
+        self.assertNotContains(resp, 'Gopal KC')
+
+        # Search query
+        resp = self.client.get(url, {'search': 'Gopal'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Gopal Academy')
+        self.assertNotContains(resp, 'Hari Press')
+
+    def test_mark_notification_read_and_mark_all_read(self):
+        """Endpoints mark a single notification or all notifications as read."""
+        n1 = PlatformNotification.objects.create(title='Unread 1', is_read=False)
+        n2 = PlatformNotification.objects.create(title='Unread 2', is_read=False)
+
+        self.client.force_login(self.superadmin)
+
+        # Mark single
+        resp = self.client.get(reverse('platform_admin:notification_mark_read', args=[n1.pk]))
+        self.assertEqual(resp.status_code, 302)
+        n1.refresh_from_db()
+        self.assertTrue(n1.is_read)
+        self.assertIsNotNone(n1.read_at)
+
+        # Mark all
+        resp = self.client.get(reverse('platform_admin:notifications_mark_all_read'))
+        self.assertEqual(resp.status_code, 302)
+        n2.refresh_from_db()
+        self.assertTrue(n2.is_read)
+        self.assertEqual(PlatformNotification.objects.filter(is_read=False).count(), 0)
+
+    def test_notification_update_status_and_notes(self):
+        """Updating lead status and follow-up notes updates workflow."""
+        n = PlatformNotification.objects.create(
+            title='Inquiry from ABC School',
+            sender_name='ABC Contact',
+            status='PENDING',
+            notes=''
+        )
+
+        self.client.force_login(self.superadmin)
+        resp = self.client.post(reverse('platform_admin:notification_update_status', args=[n.pk]), {
+            'status': 'CONTACTED',
+            'notes': 'Called customer, sending proposal email.'
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        n.refresh_from_db()
+        self.assertEqual(n.status, 'CONTACTED')
+        self.assertEqual(n.notes, 'Called customer, sending proposal email.')
+        self.assertTrue(n.is_read)
+
+    def test_notifications_access_security(self):
+        """Regular teachers and unauthenticated users cannot access notifications."""
+        url = reverse('platform_admin:notifications_list')
+
+        # Unauthenticated redirects to login
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/platform-admin/login/', resp.url)
+
+        # Regular teacher gets 403 Forbidden
+        self.client.force_login(self.teacher)
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 403)
+
 
 

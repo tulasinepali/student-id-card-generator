@@ -394,3 +394,106 @@ class OrganizationClient(models.Model):
     def total_cards(self):
         from apps.idcards.models import IDCard
         return IDCard.objects.filter(student__client=self).count()
+
+
+class PlatformNotification(models.Model):
+    """
+    Centralized notification & lead inquiry registry for Platform Super Admins.
+    Tracks demo requests, package orders, new organization registrations,
+    subscription expiries, quota warnings, and security alerts.
+    """
+    NOTIFICATION_TYPES = (
+        ('DEMO_REQUEST', 'Demo Request'),
+        ('PACKAGE_ORDER', 'Package Order / Inquiry'),
+        ('NEW_ORGANIZATION', 'New Organization Registered'),
+        ('SUBSCRIPTION_EXPIRING', 'Subscription Expiring Soon'),
+        ('SUBSCRIPTION_EXPIRED', 'Subscription Expired'),
+        ('QUOTA_REACHED', 'Quota Limit Exceeded'),
+        ('SECURITY_ALERT', 'Security Alert'),
+        ('SYSTEM', 'System Notification'),
+    )
+
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending Follow-up'),
+        ('CONTACTED', 'Contacted / In Progress'),
+        ('RESOLVED', 'Completed / Resolved'),
+        ('DISMISSED', 'Dismissed'),
+    )
+
+    PRIORITY_CHOICES = (
+        ('LOW', 'Low'),
+        ('NORMAL', 'Normal'),
+        ('HIGH', 'High'),
+        ('URGENT', 'Urgent'),
+    )
+
+    notification_type = models.CharField(max_length=40, choices=NOTIFICATION_TYPES, default='DEMO_REQUEST', db_index=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='NORMAL')
+    title = models.CharField(max_length=255)
+    message = models.TextField(blank=True)
+
+    # Lead / Requester Contact Details (for Demo & Package orders)
+    sender_name = models.CharField(max_length=150, blank=True)
+    sender_email = models.EmailField(blank=True)
+    sender_phone = models.CharField(max_length=50, blank=True)
+    organization_name = models.CharField(max_length=200, blank=True)
+    organization_type = models.CharField(max_length=50, blank=True)
+
+    # Package / Plan association if applicable
+    plan_code = models.CharField(max_length=50, blank=True)
+    plan_name = models.CharField(max_length=100, blank=True)
+
+    # Navigation / deep-link
+    link = models.CharField(max_length=255, blank=True, help_text="Internal URL for quick action")
+
+    # Workflow & Read status
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='PENDING', db_index=True)
+    notes = models.TextField(blank=True, help_text="Internal super-admin notes or follow-up status")
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Platform Notification"
+        verbose_name_plural = "Platform Notifications"
+
+    def __str__(self):
+        return f"[{self.get_notification_type_display()}] {self.title} ({'Read' if self.is_read else 'Unread'})"
+
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at', 'updated_at'])
+
+    @property
+    def badge_color(self):
+        colors = {
+            'DEMO_REQUEST': 'primary',
+            'PACKAGE_ORDER': 'success',
+            'NEW_ORGANIZATION': 'info',
+            'SUBSCRIPTION_EXPIRING': 'warning',
+            'SUBSCRIPTION_EXPIRED': 'danger',
+            'QUOTA_REACHED': 'warning',
+            'SECURITY_ALERT': 'danger',
+            'SYSTEM': 'secondary',
+        }
+        return colors.get(self.notification_type, 'primary')
+
+    @property
+    def icon_class(self):
+        icons = {
+            'DEMO_REQUEST': 'bi-send-fill',
+            'PACKAGE_ORDER': 'bi-cart-check-fill',
+            'NEW_ORGANIZATION': 'bi-building-fill-add',
+            'SUBSCRIPTION_EXPIRING': 'bi-clock-history',
+            'SUBSCRIPTION_EXPIRED': 'bi-exclamation-octagon-fill',
+            'QUOTA_REACHED': 'bi-pie-chart-fill',
+            'SECURITY_ALERT': 'bi-shield-exclamation',
+            'SYSTEM': 'bi-bell-fill',
+        }
+        return icons.get(self.notification_type, 'bi-bell-fill')
+

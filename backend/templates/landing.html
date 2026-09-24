@@ -1432,6 +1432,20 @@
             if (select && code) {
                 select.value = code;
             }
+            const title = document.getElementById('demoModalLabel');
+            if (title && name) {
+                title.innerHTML = '<i class="bi bi-cart-check-fill me-2"></i> Order Package: ' + name;
+            }
+        }
+
+        const demoModalEl = document.getElementById('demoModal');
+        if (demoModalEl) {
+            demoModalEl.addEventListener('hidden.bs.modal', function () {
+                const title = document.getElementById('demoModalLabel');
+                if (title) {
+                    title.innerHTML = '<i class="bi bi-send-fill me-2"></i> Request a System Demo';
+                }
+            });
         }
     </script>
 </body>

@@ -10,6 +10,12 @@
         <p class="text-muted small mb-0">Multi-tenant SaaS oversight &bull; {% now "l, F j, Y" %}</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{% url 'platform_admin:notifications_list' %}" class="btn btn-outline-primary fw-semibold position-relative shadow-xs">
+            <i class="bi bi-bell me-1"></i> Inquiries & Orders
+            {% if pending_inquiries_count > 0 %}
+            <span class="badge bg-danger rounded-pill ms-1">{{ pending_inquiries_count }}</span>
+            {% endif %}
+        </a>
         <a href="{% url 'platform_admin:organization_create' %}" class="btn btn-primary fw-semibold shadow-xs">
             <i class="bi bi-plus-circle me-1"></i> Add New Organization
         </a>
@@ -132,6 +138,151 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Pending Inquiries Notification Banner -->
+{% if pending_inquiries_count > 0 %}
+<div class="alert alert-primary border shadow-xs mb-4 bg-primary-subtle border-primary-subtle text-primary-emphasis">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bell-fill fs-4 text-primary"></i>
+            <div>
+                <strong>New Inquiries Pending:</strong>
+                You have <strong>{{ pending_inquiries_count }}</strong> incoming demo request or package order lead(s) requiring follow-up.
+            </div>
+        </div>
+        <a href="{% url 'platform_admin:notifications_list' %}?type=INQUIRIES&status=PENDING" class="btn btn-sm btn-primary">
+            Review Leads Now &rarr;
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Direct Demo Requests & Package Orders Section -->
+<div class="card shadow-xs border mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-cart-check text-success me-2"></i>Incoming Demo Requests & Package Orders</h6>
+            <small class="text-muted">Direct prospective clients ordering packages or requesting a demo from the landing page</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'platform_admin:notifications_list' %}?type=PACKAGE_ORDER" class="btn btn-sm btn-outline-success">
+                Package Orders ({{ package_orders_count }})
+            </a>
+            <a href="{% url 'platform_admin:notifications_list' %}?type=DEMO_REQUEST" class="btn btn-sm btn-outline-primary">
+                Demo Requests ({{ demo_orders_count }})
+            </a>
+            <a href="{% url 'platform_admin:notifications_list' %}" class="btn btn-sm btn-dark">
+                Notification Center &rarr;
+            </a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Prospect / Contact</th>
+                    <th>Organization / Studio</th>
+                    <th>Type / Plan</th>
+                    <th>Notes / Requirements</th>
+                    <th>Status</th>
+                    <th>Received</th>
+                    <th class="text-end">Quick Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inq in recent_inquiries %}
+                <tr class="{% if not inq.is_read %}table-light fw-medium{% endif %}">
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if not inq.is_read %}
+                            <span class="badge bg-danger p-1 rounded-circle" style="width: 8px; height: 8px;" title="Unread"></span>
+                            {% endif %}
+                            <div>
+                                <div class="fw-bold text-dark">{{ inq.sender_name|default:"Prospect" }}</div>
+                                <div class="small">
+                                    {% if inq.sender_phone %}
+                                    <a href="tel:{{ inq.sender_phone }}" class="text-decoration-none text-primary me-2">
+                                        <i class="bi bi-telephone me-1"></i>{{ inq.sender_phone }}
+                                    </a>
+                                    {% endif %}
+                                    {% if inq.sender_email %}
+                                    <a href="mailto:{{ inq.sender_email }}" class="text-decoration-none text-muted">
+                                        <i class="bi bi-envelope me-1"></i>{{ inq.sender_email }}
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="fw-semibold text-dark">{{ inq.organization_name|default:"Not specified" }}</div>
+                        <span class="badge bg-light text-secondary border small" style="font-size: 0.72rem;">{{ inq.organization_type }}</span>
+                    </td>
+                    <td>
+                        {% if inq.notification_type == 'PACKAGE_ORDER' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                <i class="bi bi-cart-check-fill me-1"></i> {{ inq.plan_name|default:"Package Order" }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                <i class="bi bi-send-fill me-1"></i> Live Demo Request
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="text-muted small text-truncate" style="max-width: 220px;" title="{{ inq.notes|default:inq.message }}">
+                            {{ inq.notes|default:inq.message|default:"No notes provided." }}
+                        </div>
+                    </td>
+                    <td>
+                        {% if inq.status == 'PENDING' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
+                        {% elif inq.status == 'CONTACTED' %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">Contacted</span>
+                        {% elif inq.status == 'RESOLVED' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Resolved</span>
+                        {% else %}
+                            <span class="badge bg-light text-secondary border">{{ inq.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="small text-muted" title="{{ inq.created_at }}">
+                            {{ inq.created_at|timesince }} ago
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            {% if not inq.is_read %}
+                            <a href="{% url 'platform_admin:notification_mark_read' inq.pk %}?next={{ request.path }}" class="btn btn-outline-secondary" title="Mark as Read">
+                                <i class="bi bi-check2"></i>
+                            </a>
+                            {% endif %}
+                            {% if inq.sender_phone %}
+                            <a href="tel:{{ inq.sender_phone }}" class="btn btn-outline-success" title="Call Lead">
+                                <i class="bi bi-telephone-outbound"></i>
+                            </a>
+                            {% endif %}
+                            {% if inq.sender_email %}
+                            <a href="mailto:{{ inq.sender_email }}?subject=CardFlow ID - Response to your inquiry" class="btn btn-outline-primary" title="Email Lead">
+                                <i class="bi bi-envelope"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block text-secondary opacity-50 mb-1"></i>
+                        No demo requests or package orders received yet. Prospective client inquiries submitted on the landing page will appear here instantly.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 
 <!-- Two Column Main Section -->
 <div class="row g-4 mb-4">
