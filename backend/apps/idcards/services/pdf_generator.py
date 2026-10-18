@@ -221,6 +221,20 @@ def get_dynamic_field_value(template_str, student, school, id_card=None, fallbac
     if 'valid_from' in k:
         return str(context.get('valid_from', ''))
 
+    # 4. Designer sample placeholders fallback (handles templates created with designer sample text)
+    if 'ram sharma' in k or 'student name' in k:
+        return str(context.get('student.name', ''))
+    if 'hari sharma' in k or 'guardian name' in k:
+        return str(context.get('student.guardian_name', ''))
+    if 'grade 10 - a' in k or 'grade 10' in k or 'class & section' in k:
+        return str(context.get('student.class_section', ''))
+    if '9800000000' in k or 'guardian phone' in k:
+        return str(context.get('student.guardian_phone', ''))
+    if 'kathmandu, nepal' in k or 'kathmandu' in k:
+        return str(context.get('student.address', ''))
+    if 'stu-001' in k or 'student id' in k:
+        return str(context.get('student.student_id', ''))
+
     # If neither regex nor key matched, return fallback_text or original string
     return fallback_text or template_str
 
@@ -335,7 +349,13 @@ def render_card_side(c, card_x, card_y, card_w_mm, card_h_mm, template, elements
 
         elif el.element_type in ('TEXT', 'DYNAMIC_FIELD'):
             source_template = el.dynamic_field_key if (el.dynamic_field_key and el.dynamic_field_key.strip()) else el.label_text
-            if el.element_type == 'DYNAMIC_FIELD' or (source_template and ('{' in source_template or '}' in source_template)):
+            sample_keys = ('ram sharma', 'hari sharma', 'grade 10', '9800000000', 'kathmandu', 'stu-001', 'student name', 'guardian name', 'class & section', 'guardian phone')
+            is_sample_or_dynamic = (
+                el.element_type == 'DYNAMIC_FIELD' or
+                (source_template and ('{' in source_template or '}' in source_template)) or
+                any(sk in (source_template or '').lower() for sk in sample_keys)
+            )
+            if is_sample_or_dynamic:
                 text = get_dynamic_field_value(source_template, student, school, id_card, fallback_text=el.label_text)
             else:
                 text = el.label_text or ""

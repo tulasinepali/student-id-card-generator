@@ -255,28 +255,28 @@
             <div class="card-body p-2" style="max-height: 640px; overflow-y: auto;">
                 
                 <small class="fw-bold text-muted text-uppercase d-block mb-1" style="font-size: 0.7rem;">Student Fields</small>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.name}}', 'Ram Sharma', 45, 6, 'BOLD', 9.5, '#0F172A')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.name}}', '{{student.name}}', 45, 6, 'BOLD', 9.5, '#0F172A')">
                     <i class="bi bi-person text-primary"></i> Student Name
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.student_id}}', 'STU-001', 30, 5, 'BOLD', 8.0, '#334155')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.student_id}}', '{{student.student_id}}', 30, 5, 'BOLD', 8.0, '#334155')">
                     <i class="bi bi-card-text text-secondary"></i> Student ID
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.roll_no}}', '01', 20, 5, 'NORMAL', 8.0, '#334155')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.roll_no}}', '{{student.roll_no}}', 20, 5, 'NORMAL', 8.0, '#334155')">
                     <i class="bi bi-hash text-secondary"></i> Roll Number
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.class}} - {{student.section}}', 'Grade 10 - A', 35, 5, 'NORMAL', 8.0, '#334155')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.class}} - {{student.section}}', '{{student.class}} - {{student.section}}', 35, 5, 'NORMAL', 8.0, '#334155')">
                     <i class="bi bi-mortarboard text-secondary"></i> Class & Section
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.blood_group}}', 'B+', 20, 5, 'BOLD', 8.0, '#DC2626')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.blood_group}}', '{{student.blood_group}}', 20, 5, 'BOLD', 8.0, '#DC2626')">
                     <i class="bi bi-droplet-fill text-danger"></i> Blood Group
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_name}}', 'Hari Sharma', 35, 5, 'NORMAL', 7.5, '#475569')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_name}}', '{{student.guardian_name}}', 35, 5, 'NORMAL', 7.5, '#475569')">
                     <i class="bi bi-people text-secondary"></i> Guardian Name
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_phone}}', '+977-9800000000', 35, 5, 'NORMAL', 7.5, '#475569')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.guardian_phone}}', '{{student.guardian_phone}}', 35, 5, 'NORMAL', 7.5, '#475569')">
                     <i class="bi bi-telephone text-secondary"></i> Guardian Phone
                 </div>
-                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.address}}', 'Kathmandu, Nepal', 45, 5, 'NORMAL', 7.5, '#475569')">
+                <div class="toolbox-item" onclick="addElement('DYNAMIC_FIELD', '{{student.address}}', '{{student.address}}', 45, 5, 'NORMAL', 7.5, '#475569')">
                     <i class="bi bi-geo-alt text-secondary"></i> Address
                 </div>
 
@@ -948,7 +948,11 @@
         notice.classList.add('d-none');
         form.classList.remove('d-none');
 
-        document.getElementById('propLabel').value = el.label_text || el.dynamic_field_key || '';
+        if (el.element_type === 'DYNAMIC_FIELD') {
+            document.getElementById('propLabel').value = el.dynamic_field_key || el.label_text || '';
+        } else {
+            document.getElementById('propLabel').value = el.label_text || '';
+        }
         document.getElementById('propX').value = el.x_mm;
         document.getElementById('propY').value = el.y_mm;
         document.getElementById('propW').value = el.width_mm;
@@ -993,8 +997,10 @@
         const el = elements.find(item => item.id === selectedElementId);
         if (!el) return;
         el[key] = value;
-        if (key === 'label_text' && el.element_type === 'DYNAMIC_FIELD' && (value.includes('{') || value.includes('}'))) {
-            el.dynamic_field_key = value;
+        if (key === 'label_text') {
+            if (el.element_type === 'DYNAMIC_FIELD' || (typeof value === 'string' && (value.includes('{') || value.includes('}')))) {
+                el.dynamic_field_key = value;
+            }
         }
         renderCanvas();
         renderLayers();
@@ -1257,9 +1263,17 @@
             return;
         }
 
+        const cleanedElements = elements.map(el => {
+            const clone = Object.assign({}, el);
+            if (clone.element_type === 'DYNAMIC_FIELD' && !clone.dynamic_field_key) {
+                clone.dynamic_field_key = clone.label_text;
+            }
+            return clone;
+        });
+
         const payload = {
             action: 'save_canvas_elements',
-            elements: elements
+            elements: cleanedElements
         };
 
         fetch(TEMPLATE_SAVE_URL, {
