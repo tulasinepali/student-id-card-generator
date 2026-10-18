@@ -757,7 +757,7 @@ def cards_history_view(request):
                 qs = qs.filter(student__client=active_client)
 
     search = request.GET.get('search', '').strip()
-    status_filter = request.GET.get('validity_status')
+    status_filter = request.GET.get('validity_status') or request.GET.get('status')
 
     if search:
         qs = qs.filter(

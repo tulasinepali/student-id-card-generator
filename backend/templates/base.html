@@ -120,6 +120,49 @@
         .badge-active { background-color: #DBEAFE; color: #1E40AF; font-weight: 600; }
         .badge-revoked { background-color: #FEE2E2; color: #991B1B; font-weight: 600; }
         .badge-expired { background-color: #FFEDD5; color: #9A3412; font-weight: 600; }
+
+        /* Interactive KPI Cards */
+        .card-interactive {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .card-interactive:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+            border-color: var(--primary-blue) !important;
+            color: inherit;
+        }
+
+        /* Mobile Responsive Sidebar */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.25s ease-in-out;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+                box-shadow: 0 0 30px rgba(0,0,0,0.4);
+            }
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+            .sidebar-backdrop {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(2px);
+                z-index: 999;
+            }
+            .sidebar-backdrop.show {
+                display: block;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -218,6 +261,30 @@
                     <i class="bi bi-clock-history"></i> Card History & Revoke
                 </a>
             </li>
+
+            {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+            <li class="sidebar-heading">Platform Administration</li>
+            <li class="nav-item">
+                <a href="{% url 'platform_admin:dashboard' %}" class="text-warning">
+                    <i class="bi bi-speedometer2 text-warning"></i> Platform Admin Panel
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'platform_admin:organizations_list' %}">
+                    <i class="bi bi-buildings"></i> Organizations
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'platform_admin:audit_logs' %}">
+                    <i class="bi bi-shield-shaded"></i> Platform Audit Trail
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{% url 'platform_admin:settings' %}">
+                    <i class="bi bi-gear-fill"></i> Platform Settings
+                </a>
+            </li>
+            {% endif %}
         </ul>
     </aside>
 
@@ -225,7 +292,11 @@
     <div class="main-wrapper">
         <!-- Top Navbar -->
         <header class="top-navbar">
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <!-- Mobile Sidebar Toggle -->
+                <button class="btn btn-sm btn-light border d-lg-none me-1" type="button" id="sidebarToggleBtn" aria-label="Toggle navigation" title="Toggle Navigation Menu">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
                 <h5 class="m-0 fw-bold">{% block page_heading %}Dashboard{% endblock %}</h5>
 
                 {% if is_studio %}
@@ -274,16 +345,75 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                    <i class="bi bi-shield-check"></i> {{ request.user.get_role_display|default:"Administrator" }}
-                </span>
-                <span class="text-secondary small fw-medium">
-                    {{ request.user.get_full_name|default:request.user.username }}
-                </span>
-                <a href="{% url 'admin_logout' %}" class="btn btn-sm btn-outline-danger" title="Logout">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+            <div class="d-flex align-items-center gap-2">
+                {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+                <a href="{% url 'platform_admin:dashboard' %}" class="btn btn-sm btn-outline-warning text-dark d-flex align-items-center gap-1 shadow-xs fw-semibold px-2 py-1" title="Switch to Platform Super Admin Portal">
+                    <i class="bi bi-shield-lock-fill text-warning"></i>
+                    <span class="d-none d-md-inline">Platform Admin</span>
                 </a>
+                {% endif %}
+
+                <!-- User Profile & Account Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light border dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 shadow-xs" type="button" id="userMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 26px; height: 26px; font-size: 0.75rem;">
+                            {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+                        </div>
+                        <span class="d-none d-sm-inline small fw-semibold text-dark">
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-2" aria-labelledby="userMenuBtn" style="min-width: 230px;">
+                        <li class="px-3 py-2 border-bottom">
+                            <div class="fw-bold text-dark text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+                            <div class="text-muted small"><i class="bi bi-shield-check text-primary me-1"></i>{{ request.user.get_role_display|default:"Administrator" }}</div>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'print_center' %}">
+                                <i class="bi bi-printer text-secondary"></i> ID Card Print Center
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'verification_queue' %}">
+                                <i class="bi bi-patch-check text-secondary"></i> Verification Queue
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'templates_list' %}">
+                                <i class="bi bi-palette text-secondary"></i> Card Templates
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'cards_history' %}">
+                                <i class="bi bi-clock-history text-secondary"></i> Card History & Revocations
+                            </a>
+                        </li>
+                        {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2 text-warning-emphasis" href="{% url 'platform_admin:dashboard' %}">
+                                <i class="bi bi-speedometer2 text-warning"></i> Platform Super Admin
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'platform_admin:organizations_list' %}">
+                                <i class="bi bi-buildings text-secondary"></i> Organizations
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 small d-flex align-items-center gap-2" href="{% url 'platform_admin:audit_logs' %}">
+                                <i class="bi bi-shield-check text-secondary"></i> Platform Audit Trail
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item py-2 small text-danger d-flex align-items-center gap-2" href="{% url 'admin_logout' %}">
+                                <i class="bi bi-box-arrow-right"></i> Sign Out
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </header>
 
@@ -313,8 +443,29 @@
         </footer>
     </div>
 
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
     <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var toggleBtn = document.getElementById('sidebarToggleBtn');
+            var sidebar = document.querySelector('.sidebar');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            if (toggleBtn && sidebar && backdrop) {
+                toggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    sidebar.classList.toggle('show');
+                    backdrop.classList.toggle('show');
+                });
+                backdrop.addEventListener('click', function() {
+                    sidebar.classList.remove('show');
+                    backdrop.classList.remove('show');
+                });
+            }
+        });
+    </script>
     {% block extra_scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
 </body>

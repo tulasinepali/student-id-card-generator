@@ -44,11 +44,15 @@
                 </div>
             {% endif %}
 
-            <div class="d-flex gap-2 justify-content-center mt-4">
-                {% if student.verification_status == 'VERIFIED' and student.photo %}
-                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#printCardModal">
+            <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
+                {% if student.photo %}
+                    <button type="button" class="btn btn-sm btn-success fw-semibold" data-bs-toggle="modal" data-bs-target="#printCardModal">
                         <i class="bi bi-printer me-1"></i> Print ID Card
                     </button>
+                {% else %}
+                    <a href="{% url 'student_edit' student.id %}" class="btn btn-sm btn-outline-warning text-dark fw-semibold" title="Upload student photograph before printing">
+                        <i class="bi bi-camera me-1"></i> Add Photo to Print
+                    </a>
                 {% endif %}
                 <a href="{% url 'student_edit' student.id %}" class="btn btn-sm btn-primary">
                     <i class="bi bi-pencil"></i> Edit Student

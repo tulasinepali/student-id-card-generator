@@ -125,6 +125,34 @@
         .badge-status-trial { background-color: #FEF08A; color: #713F12; border: 1px solid #FDE047; }
         .badge-status-suspended { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
         .badge-status-expired { background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+
+        @media (max-width: 991.98px) {
+            #platformSidebar {
+                transform: translateX(-100%);
+                transition: transform 0.25s ease-in-out;
+            }
+            #platformSidebar.show {
+                transform: translateX(0);
+                box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            }
+            #platformContent {
+                margin-left: 0 !important;
+            }
+            .platform-sidebar-backdrop {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(2px);
+                z-index: 1030;
+            }
+            .platform-sidebar-backdrop.show {
+                display: block;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -208,8 +236,11 @@
             </a>
 
             <div class="nav-section-title">Switch Portals</div>
-            <a href="/" target="_blank" class="nav-link text-info">
-                <i class="bi bi-box-arrow-up-right"></i> Organization Site
+            <a href="{% url 'dashboard' %}" class="nav-link text-info">
+                <i class="bi bi-grid-fill"></i> School / Tenant Portal
+            </a>
+            <a href="{% url 'landing_page' %}" target="_blank" class="nav-link text-secondary">
+                <i class="bi bi-box-arrow-up-right"></i> Public Homepage
             </a>
         </div>
     </nav>
@@ -218,16 +249,29 @@
     <div id="platformContent">
         <!-- Top Navigation -->
         <header id="platformTopNav">
-            <!-- Global Platform Search Bar -->
-            <form action="{% url 'platform_admin:global_search' %}" method="GET" class="d-flex align-items-center" style="max-width: 480px; width: 100%;">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Search organizations, admin, student ID, email..." value="{{ request.GET.q }}">
-                </div>
-            </form>
+            <div class="d-flex align-items-center gap-2" style="max-width: 500px; width: 100%;">
+                <!-- Mobile Toggle -->
+                <button class="btn btn-sm btn-light border d-lg-none" type="button" id="platformSidebarToggleBtn" aria-label="Toggle navigation" title="Toggle Navigation Menu">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+
+                <!-- Global Platform Search Bar -->
+                <form action="{% url 'platform_admin:global_search' %}" method="GET" class="d-flex align-items-center flex-grow-1">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Search organizations, admin, student ID, email..." value="{{ request.GET.q }}">
+                    </div>
+                </form>
+            </div>
 
             <!-- Notifications & User Menu -->
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <!-- 1-Click School Portal Switcher -->
+                <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 shadow-xs fw-semibold px-2 py-1" title="Switch to School / Tenant Portal">
+                    <i class="bi bi-grid-fill"></i>
+                    <span class="d-none d-md-inline">School Portal</span>
+                </a>
+
                 <!-- Live Notification Bell Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-light position-relative p-2 rounded-circle border shadow-xs" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Platform Notifications">
@@ -344,8 +388,29 @@
         </footer>
     </div>
 
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="platformSidebarBackdrop" class="platform-sidebar-backdrop"></div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var toggleBtn = document.getElementById('platformSidebarToggleBtn');
+            var sidebar = document.getElementById('platformSidebar');
+            var backdrop = document.getElementById('platformSidebarBackdrop');
+            if (toggleBtn && sidebar && backdrop) {
+                toggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    sidebar.classList.toggle('show');
+                    backdrop.classList.toggle('show');
+                });
+                backdrop.addEventListener('click', function() {
+                    sidebar.classList.remove('show');
+                    backdrop.classList.remove('show');
+                });
+            }
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

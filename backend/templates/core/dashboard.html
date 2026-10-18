@@ -36,24 +36,25 @@
 
     <!-- KPI Widgets -->
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'students_list' %}" class="card p-3 bg-white card-interactive h-100" title="View all students in directory">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Total Students</span>
-                    <h3 class="fw-bold mb-0 mt-1">{{ total_students }}</h3>
+                    <h3 class="fw-bold mb-0 mt-1 text-dark">{{ total_students }}</h3>
                 </div>
                 <div class="p-3 bg-primary-subtle text-primary rounded-circle">
                     <i class="bi bi-people fs-4"></i>
                 </div>
             </div>
-            <div class="mt-2 text-muted small">
-                <span class="text-success fw-bold">{{ active_students }}</span> Active in roster
+            <div class="mt-2 text-muted small d-flex justify-content-between align-items-center">
+                <span><strong class="text-success">{{ active_students }}</strong> Active in roster</span>
+                <i class="bi bi-arrow-right text-primary small"></i>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'students_list' %}?verification_status=VERIFIED" class="card p-3 bg-white card-interactive h-100" title="View verified students ready for ID cards">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Verified Students</span>
@@ -63,14 +64,15 @@
                     <i class="bi bi-patch-check fs-4"></i>
                 </div>
             </div>
-            <div class="mt-2 text-muted small">
-                Eligible for ID card printing
+            <div class="mt-2 text-muted small d-flex justify-content-between align-items-center">
+                <span class="text-success"><i class="bi bi-check-circle me-1"></i>Eligible for printing</span>
+                <i class="bi bi-arrow-right text-success small"></i>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'verification_queue' %}" class="card p-3 bg-white card-interactive h-100" title="Open verification review queue">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Pending Verification</span>
@@ -80,14 +82,15 @@
                     <i class="bi bi-hourglass-split fs-4"></i>
                 </div>
             </div>
-            <div class="mt-2 text-muted small">
-                <span class="fw-bold text-dark">{{ submitted_verification }}</span> submitted by teachers
+            <div class="mt-2 text-muted small d-flex justify-content-between align-items-center">
+                <span><strong class="text-dark">{{ submitted_verification }}</strong> submitted by staff</span>
+                <i class="bi bi-arrow-right text-warning small"></i>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'students_list' %}?missing_photo=yes" class="card p-3 bg-white card-interactive h-100" title="View students missing photographs">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Missing Photos</span>
@@ -97,60 +100,84 @@
                     <i class="bi bi-image fs-4"></i>
                 </div>
             </div>
-            <div class="mt-2 text-muted small">
-                <a href="{% url 'bulk_photos' %}" class="text-decoration-none">Upload photo ZIP &rarr;</a>
+            <div class="mt-2 text-muted small d-flex justify-content-between align-items-center">
+                <span class="text-danger"><i class="bi bi-upload me-1"></i>Upload ZIP or attach</span>
+                <i class="bi bi-arrow-right text-danger small"></i>
             </div>
-        </div>
+        </a>
     </div>
 
     <!-- Second row widgets -->
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'cards_history' %}" class="card p-3 bg-white card-interactive h-100" title="View card issuance history">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">ID Cards Printed</span>
                     <h4 class="fw-bold mb-0 mt-1 text-primary">{{ printed_cards }}</h4>
                 </div>
-                <i class="bi bi-card-checklist fs-3 text-secondary"></i>
+                <div class="p-2 bg-light rounded-circle text-primary">
+                    <i class="bi bi-card-checklist fs-4"></i>
+                </div>
             </div>
-            <div class="mt-1 small text-muted">{{ generated_cards }} total generated</div>
-        </div>
+            <div class="mt-2 small text-muted d-flex justify-content-between align-items-center">
+                <span>{{ generated_cards }} total generated</span>
+                <i class="bi bi-arrow-right text-secondary small"></i>
+            </div>
+        </a>
     </div>
+
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'cards_history' %}?validity_status=REVOKED" class="card p-3 bg-white card-interactive h-100" title="View revoked and expired ID cards">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Revoked Cards</span>
                     <h4 class="fw-bold mb-0 mt-1 text-danger">{{ revoked_cards }}</h4>
                 </div>
-                <i class="bi bi-x-octagon fs-3 text-danger"></i>
+                <div class="p-2 bg-light rounded-circle text-danger">
+                    <i class="bi bi-x-octagon fs-4"></i>
+                </div>
             </div>
-            <div class="mt-1 small text-muted">{{ expired_cards }} expired cards</div>
-        </div>
+            <div class="mt-2 small text-muted d-flex justify-content-between align-items-center">
+                <span>{{ expired_cards }} expired cards</span>
+                <i class="bi bi-arrow-right text-secondary small"></i>
+            </div>
+        </a>
     </div>
+
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'teachers_list' %}" class="card p-3 bg-white card-interactive h-100" title="Manage teachers and section assignments">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Active Teachers</span>
                     <h4 class="fw-bold mb-0 mt-1 text-dark">{{ total_teachers }}</h4>
                 </div>
-                <i class="bi bi-person-badge fs-3 text-secondary"></i>
+                <div class="p-2 bg-light rounded-circle text-secondary">
+                    <i class="bi bi-person-badge fs-4"></i>
+                </div>
             </div>
-            <div class="mt-1 small text-muted"><a href="{% url 'teachers_list' %}" class="text-decoration-none">Manage assignments &rarr;</a></div>
-        </div>
+            <div class="mt-2 small text-muted d-flex justify-content-between align-items-center">
+                <span>Manage staff assignments</span>
+                <i class="bi bi-arrow-right text-secondary small"></i>
+            </div>
+        </a>
     </div>
+
     <div class="col-md-3">
-        <div class="card p-3 bg-white">
+        <a href="{% url 'classes_sections' %}" class="card p-3 bg-white card-interactive h-100" title="Configure class and section structure">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-semibold text-uppercase">Classes & Sections</span>
                     <h4 class="fw-bold mb-0 mt-1 text-dark">{{ total_classes }}</h4>
                 </div>
-                <i class="bi bi-diagram-3 fs-3 text-secondary"></i>
+                <div class="p-2 bg-light rounded-circle text-secondary">
+                    <i class="bi bi-diagram-3 fs-4"></i>
+                </div>
             </div>
-            <div class="mt-1 small text-muted"><a href="{% url 'classes_sections' %}" class="text-decoration-none">Configure structure &rarr;</a></div>
-        </div>
+            <div class="mt-2 small text-muted d-flex justify-content-between align-items-center">
+                <span>Configure hierarchy</span>
+                <i class="bi bi-arrow-right text-secondary small"></i>
+            </div>
+        </a>
     </div>
 </div>
 
@@ -233,6 +260,14 @@
                         <span><i class="bi bi-printer me-2"></i> ID Card Printing Center</span>
                         <i class="bi bi-chevron-right small"></i>
                     </a>
+                    <a href="{% url 'verification_queue' %}" class="btn btn-outline-warning text-dark btn-sm py-2 text-start d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-patch-check-fill text-warning me-2"></i> Verification Queue (Review)</span>
+                        <i class="bi bi-chevron-right small"></i>
+                    </a>
+                    <a href="{% url 'bulk_photos' %}" class="btn btn-outline-info text-dark btn-sm py-2 text-start d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-images me-2"></i> Bulk Photo ZIP Upload</span>
+                        <i class="bi bi-chevron-right small"></i>
+                    </a>
                     <a href="{% url 'student_create' %}" class="btn btn-outline-dark btn-sm py-2 text-start d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-person-plus me-2"></i> Add Single Student</span>
                         <i class="bi bi-chevron-right small"></i>
@@ -245,10 +280,20 @@
                         <span><i class="bi bi-card-heading me-2"></i> ID Card Templates</span>
                         <i class="bi bi-chevron-right small"></i>
                     </a>
-                    <a href="{% url 'teachers_list' %}" class="btn btn-outline-info text-dark btn-sm py-2 text-start d-flex align-items-center justify-content-between">
+                    <a href="{% url 'teachers_list' %}" class="btn btn-outline-secondary btn-sm py-2 text-start d-flex align-items-center justify-content-between">
                         <span><i class="bi bi-people me-2"></i> Manage Teachers & Staff</span>
                         <i class="bi bi-chevron-right small"></i>
                     </a>
+                    <a href="{% url 'cards_history' %}" class="btn btn-outline-secondary btn-sm py-2 text-start d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-clock-history me-2"></i> Card Issuance History & Revocations</span>
+                        <i class="bi bi-chevron-right small"></i>
+                    </a>
+                    {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+                    <a href="{% url 'platform_admin:dashboard' %}" class="btn btn-warning text-dark btn-sm py-2 text-start d-flex align-items-center justify-content-between fw-semibold">
+                        <span><i class="bi bi-speedometer2 text-dark me-2"></i> Platform Super Admin Console</span>
+                        <i class="bi bi-chevron-right small"></i>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
