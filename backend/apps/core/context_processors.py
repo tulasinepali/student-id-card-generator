@@ -62,9 +62,23 @@ def school_settings_context(request):
 
     site_name = platform_settings.platform_name if platform_settings else settings.APP_NAME
     site_favicon = platform_settings.favicon.url if (platform_settings and platform_settings.favicon) else None
-    site_copyright = platform_settings.copyright_text if platform_settings else f"© {settings.APP_COPYRIGHT_YEAR} {site_name}. All Rights Reserved."
+    platform_copyright = platform_settings.copyright_text if platform_settings else f"© {settings.APP_COPYRIGHT_YEAR} {site_name}. All Rights Reserved."
     site_developed_by = platform_settings.developed_by if platform_settings else settings.APP_DESIGNER_NAME
     site_developed_by_url = platform_settings.developed_by_url if platform_settings else settings.APP_WEBSITE
+
+    from datetime import datetime
+    current_year = datetime.now().year
+    effective_org_name = (
+        (active_client.name if active_client else None) or
+        (effective_school.name if effective_school else None) or
+        (org.name if org else None)
+    )
+    if effective_org_name:
+        org_copyright = f"© {current_year} {effective_org_name}. All Rights Reserved."
+    else:
+        org_copyright = platform_copyright
+
+    site_copyright = org_copyright
 
     platform_unread_notifications_count = 0
     platform_latest_notifications = []
@@ -90,6 +104,8 @@ def school_settings_context(request):
         'site_name': site_name,
         'site_favicon': site_favicon,
         'site_copyright': site_copyright,
+        'org_copyright': org_copyright,
+        'platform_copyright': platform_copyright,
         'site_developed_by': site_developed_by,
         'site_developed_by_url': site_developed_by_url,
         'app_config': {
