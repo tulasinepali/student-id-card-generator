@@ -376,10 +376,20 @@ def render_card_side(c, card_x, card_y, card_w_mm, card_h_mm, template, elements
             font_size = el.font_size
             text_str = str(text) if text is not None else ""
 
-            # Auto-shrink text if enabled and string exceeds box width
+            # Standardize student detail rows (Class, Address, Parents, Contact, etc.) so they render uniformly
+            key_check = ((el.dynamic_field_key or '') + ' ' + (el.label_text or '')).lower()
+            is_detail_field = any(k in key_check for k in ['class', 'section', 'guardian', 'parent', 'address', 'contact', 'phone', 'blood', 'dob', 'roll'])
+            is_name_or_school = any(k in key_check for k in ['student.name', 'full_name', 'full name', 'ram sharma', 'school.name', 'academy'])
+
+            if is_detail_field and not is_name_or_school and font_size > 7.2:
+                font_size = 7.2
+
+            # Auto-shrink text if enabled and string exceeds card/box boundary
             if getattr(el, 'auto_shrink_text', True) and text_str:
                 test_str = text_str.split('\n')[0] if '\n' in text_str else text_str
-                while font_size > 5.0 and c.stringWidth(test_str, font_name, font_size) > el_w_pt:
+                # Allow text to use available physical width on the card without artificial premature shrinking
+                max_allowed_w_pt = max(el_w_pt, (card_w_mm - el.x_mm - 1.5) * mm)
+                while font_size > 5.0 and c.stringWidth(test_str, font_name, font_size) > max_allowed_w_pt:
                     font_size -= 0.5
 
             c.setFont(font_name, font_size)
