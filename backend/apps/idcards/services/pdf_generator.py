@@ -1,5 +1,6 @@
 import io
 import os
+import re
 from datetime import date
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -40,49 +41,188 @@ def get_effective_school(student, default_school=None):
     return default_school
 
 
-def get_dynamic_field_value(key, student, school, id_card=None):
+def build_variable_context(student, school, id_card=None):
+    """
+    Constructs a comprehensive, normalized dictionary of dynamic field values
+    from student, institutional school/client, and ID card validity models.
+    """
+    full_name = getattr(student, 'full_name', '') or ''
+    student_id = getattr(student, 'student_id', '') or ''
+    roll_no = str(student.roll_number) if getattr(student, 'roll_number', None) is not None else ''
+
+    class_level = getattr(student, 'class_level', None)
+    class_name = class_level.name if class_level else ''
+
+    section = getattr(student, 'section', None)
+    section_name = section.name if section else ''
+
+    if class_name and section_name:
+        class_sec = f"{class_name} - {section_name}"
+    else:
+        class_sec = class_name or section_name or ''
+
+    dob_val = getattr(student, 'date_of_birth', None)
+    dob = dob_val.strftime('%Y-%m-%d') if dob_val else 'N/A'
+
+    gender = student.get_gender_display() if hasattr(student, 'get_gender_display') else (getattr(student, 'gender', '') or 'N/A')
+    address = getattr(student, 'address', '') or 'N/A'
+    guardian_name = getattr(student, 'guardian_name', '') or 'N/A'
+    guardian_phone = getattr(student, 'guardian_phone', '') or 'N/A'
+    blood_group = getattr(student, 'blood_group', '') or 'N/A'
+    emergency_contact = getattr(student, 'emergency_contact', '') or guardian_phone or 'N/A'
+
+    school_name = getattr(school, 'name', '') or 'School Name'
+    head_teacher = (
+        getattr(school, 'signatory_name', None) or
+        getattr(school, 'head_teacher_name', None) or
+        'Principal'
+    )
+    school_address = getattr(school, 'address', '') or ''
+    school_municipality = getattr(school, 'municipality', '') or ''
+    school_district = getattr(school, 'district', '') or ''
+    school_province = getattr(school, 'province', '') or ''
+    school_phone = getattr(school, 'phone', '') or ''
+    school_email = getattr(school, 'email', '') or ''
+    school_website = getattr(school, 'website', '') or ''
+
+    if id_card and getattr(id_card, 'valid_from', None):
+        valid_from = id_card.valid_from.strftime('%d %b %Y')
+    else:
+        valid_from = date.today().strftime('%d %b %Y')
+
+    if id_card and getattr(id_card, 'valid_until', None):
+        valid_until = id_card.valid_until.strftime('%d %b %Y')
+    else:
+        valid_until = date.today().replace(year=date.today().year + 1).strftime('%d %b %Y')
+
+    card_num = getattr(id_card, 'card_number', '') if id_card else ''
+
+    return {
+        'student.name': full_name,
+        'student.full_name': full_name,
+        'student_name': full_name,
+        'name': full_name,
+        'student.student_id': student_id,
+        'student.id': student_id,
+        'student_id': student_id,
+        'id': student_id,
+        'student.roll_no': roll_no,
+        'student.roll_number': roll_no,
+        'student.roll': roll_no,
+        'roll_no': roll_no,
+        'roll': roll_no,
+        'student.class': class_name,
+        'student.class_level': class_name,
+        'class': class_name,
+        'grade': class_name,
+        'student.section': section_name,
+        'section': section_name,
+        'student.class_section': class_sec,
+        'class_section': class_sec,
+        'student.dob': dob,
+        'student.date_of_birth': dob,
+        'dob': dob,
+        'student.gender': gender,
+        'gender': gender,
+        'student.address': address,
+        'address': address,
+        'student.guardian_name': guardian_name,
+        'student.parent_name': guardian_name,
+        'guardian_name': guardian_name,
+        'student.guardian_phone': guardian_phone,
+        'student.parent_phone': guardian_phone,
+        'guardian_phone': guardian_phone,
+        'student.blood_group': blood_group,
+        'student.blood': blood_group,
+        'blood_group': blood_group,
+        'student.emergency_contact': emergency_contact,
+        'emergency_contact': emergency_contact,
+        'school.name': school_name,
+        'school_name': school_name,
+        'school.head_teacher_name': head_teacher,
+        'school.principal': head_teacher,
+        'principal': head_teacher,
+        'school.signatory_name': head_teacher,
+        'school.address': school_address,
+        'school.municipality': school_municipality,
+        'school.district': school_district,
+        'school.province': school_province,
+        'school.phone': school_phone,
+        'school.email': school_email,
+        'school.website': school_website,
+        'valid_from': valid_from,
+        'valid_until': valid_until,
+        'card_number': card_num,
+    }
+
+
+def get_dynamic_field_value(template_str, student, school, id_card=None, fallback_text=""):
     """
     Substitutes dynamic template field keys with actual student/school/validity data.
+    Supports:
+    - Full templated strings with placeholders: "ID: {{student.student_id}} | Roll: {{student.roll_no}}"
+    - Single bracket placeholders: "{student.name}"
+    - Raw field keys: "student.name", "student.roll_no", "valid_until"
+    - Partial/keyword fallbacks and fallback text preservation.
     """
-    key = key.strip().replace('{', '').replace('}', '').lower()
-    
-    if key == 'student.name':
-        return student.full_name
-    elif key == 'student.student_id':
-        return student.student_id
-    elif key == 'student.roll_no':
-        return str(student.roll_number)
-    elif key == 'student.class':
-        return student.class_level.name
-    elif key == 'student.section':
-        return student.section.name
-    elif key == 'student.dob':
-        return student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else 'N/A'
-    elif key == 'student.gender':
-        return student.get_gender_display()
-    elif key == 'student.address':
-        return student.address or 'N/A'
-    elif key == 'student.guardian_name':
-        return student.guardian_name or 'N/A'
-    elif key == 'student.guardian_phone':
-        return student.guardian_phone or 'N/A'
-    elif key == 'student.blood_group':
-        return student.blood_group or 'N/A'
-    elif key == 'student.emergency_contact':
-        return student.emergency_contact or 'N/A'
-    elif key == 'school.name':
-        return school.name if school else 'School Name'
-    elif key == 'school.head_teacher_name':
-        return school.head_teacher_name if school else 'Principal'
-    elif key == 'valid_from':
-        if id_card:
-            return id_card.valid_from.strftime('%d %b %Y')
-        return date.today().strftime('%d %b %Y')
-    elif key == 'valid_until':
-        if id_card:
-            return id_card.valid_until.strftime('%d %b %Y')
-        return (date.today().replace(year=date.today().year + 1)).strftime('%d %b %Y')
-    return ""
+    if template_str is None:
+        return fallback_text or ""
+
+    template_str = str(template_str).strip()
+    if not template_str:
+        return fallback_text or ""
+
+    context = build_variable_context(student, school, id_card)
+
+    # 1. Regex replacement for {{key}} or {key}
+    pattern = re.compile(r'\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}|\{\s*([a-zA-Z0-9_.]+)\s*\}')
+    if pattern.search(template_str):
+        def repl(m):
+            raw_k = m.group(1) or m.group(2)
+            k = raw_k.strip().lower()
+            return str(context.get(k, ''))
+        result = pattern.sub(repl, template_str).strip()
+        return result
+
+    # 2. Direct key lookup (e.g. "student.name", "{{student.name}}")
+    k = template_str.replace('{', '').replace('}', '').strip().lower()
+    if k in context:
+        return str(context[k])
+
+    # 3. Keyword matching for common designer defaults or partial keys
+    if 'student.name' in k:
+        return str(context.get('student.name', ''))
+    if 'student.student_id' in k:
+        return str(context.get('student.student_id', ''))
+    if 'student.roll' in k:
+        return str(context.get('student.roll_no', ''))
+    if 'student.class' in k and 'student.section' in k:
+        return str(context.get('student.class_section', ''))
+    if 'student.class' in k:
+        return str(context.get('student.class', ''))
+    if 'student.section' in k:
+        return str(context.get('student.section', ''))
+    if 'student.dob' in k:
+        return str(context.get('student.dob', ''))
+    if 'student.gender' in k:
+        return str(context.get('student.gender', ''))
+    if 'student.blood' in k:
+        return str(context.get('student.blood_group', ''))
+    if 'student.guardian_phone' in k or 'guardian_phone' in k or 'parent_phone' in k:
+        return str(context.get('student.guardian_phone', ''))
+    if 'student.guardian' in k or 'guardian_name' in k:
+        return str(context.get('student.guardian_name', ''))
+    if 'student.address' in k:
+        return str(context.get('student.address', ''))
+    if 'school.name' in k:
+        return str(context.get('school.name', ''))
+    if 'valid_until' in k:
+        return str(context.get('valid_until', ''))
+    if 'valid_from' in k:
+        return str(context.get('valid_from', ''))
+
+    # If neither regex nor key matched, return fallback_text or original string
+    return fallback_text or template_str
 
 
 def draw_crop_marks(c, card_x, card_y, card_w, card_h, mark_len=4 * mm, offset=1.5 * mm):
@@ -194,9 +334,11 @@ def render_card_side(c, card_x, card_y, card_w_mm, card_h_mm, template, elements
             c.line(el_x_pt, el_y_pt + el_h_pt / 2, el_x_pt + el_w_pt, el_y_pt + el_h_pt / 2)
 
         elif el.element_type in ('TEXT', 'DYNAMIC_FIELD'):
-            text = el.label_text
-            if el.element_type == 'DYNAMIC_FIELD' or '{{' in text:
-                text = get_dynamic_field_value(el.dynamic_field_key or text, student, school, id_card)
+            source_template = el.dynamic_field_key if (el.dynamic_field_key and el.dynamic_field_key.strip()) else el.label_text
+            if el.element_type == 'DYNAMIC_FIELD' or (source_template and ('{' in source_template or '}' in source_template)):
+                text = get_dynamic_field_value(source_template, student, school, id_card, fallback_text=el.label_text)
+            else:
+                text = el.label_text or ""
 
             c.setFillColor(hex_to_reportlab_color(el.font_color, '#0F172A'))
             is_bold = el.font_weight == 'BOLD'
@@ -212,21 +354,36 @@ def render_card_side(c, card_x, card_y, card_w_mm, card_h_mm, template, elements
                 font_name = "Helvetica"
 
             font_size = el.font_size
+            text_str = str(text) if text is not None else ""
+
             # Auto-shrink text if enabled and string exceeds box width
-            if getattr(el, 'auto_shrink_text', True) and str(text):
-                while font_size > 5.0 and c.stringWidth(str(text), font_name, font_size) > el_w_pt:
+            if getattr(el, 'auto_shrink_text', True) and text_str:
+                test_str = text_str.split('\n')[0] if '\n' in text_str else text_str
+                while font_size > 5.0 and c.stringWidth(test_str, font_name, font_size) > el_w_pt:
                     font_size -= 0.5
 
             c.setFont(font_name, font_size)
 
-            # Alignment
-            text_str = str(text)
-            if el.text_align == 'CENTER':
-                c.drawCentredString(el_x_pt + el_w_pt / 2, el_y_pt + (el_h_pt * 0.25), text_str)
-            elif el.text_align == 'RIGHT':
-                c.drawRightString(el_x_pt + el_w_pt, el_y_pt + (el_h_pt * 0.25), text_str)
+            # Alignment and multiline handling
+            if '\n' in text_str:
+                lines = text_str.split('\n')
+                line_height = font_size * 1.2
+                start_y = el_y_pt + el_h_pt - line_height
+                for idx, line in enumerate(lines):
+                    curr_y = start_y - (idx * line_height)
+                    if el.text_align == 'CENTER':
+                        c.drawCentredString(el_x_pt + el_w_pt / 2, curr_y, line)
+                    elif el.text_align == 'RIGHT':
+                        c.drawRightString(el_x_pt + el_w_pt, curr_y, line)
+                    else:
+                        c.drawString(el_x_pt, curr_y, line)
             else:
-                c.drawString(el_x_pt, el_y_pt + (el_h_pt * 0.25), text_str)
+                if el.text_align == 'CENTER':
+                    c.drawCentredString(el_x_pt + el_w_pt / 2, el_y_pt + (el_h_pt * 0.25), text_str)
+                elif el.text_align == 'RIGHT':
+                    c.drawRightString(el_x_pt + el_w_pt, el_y_pt + (el_h_pt * 0.25), text_str)
+                else:
+                    c.drawString(el_x_pt, el_y_pt + (el_h_pt * 0.25), text_str)
 
         elif el.element_type == 'STUDENT_PHOTO':
             is_circular = getattr(el, 'is_circular', False)
@@ -276,22 +433,25 @@ def render_card_side(c, card_x, card_y, card_w_mm, card_h_mm, template, elements
                     pass
 
         elif el.element_type == 'SIGNATURE':
-            if school and school.head_teacher_signature and hasattr(school.head_teacher_signature, 'path') and os.path.exists(school.head_teacher_signature.path):
+            sig = getattr(school, 'head_teacher_signature', None) or getattr(school, 'authorized_signature', None)
+            if sig and hasattr(sig, 'path') and os.path.exists(sig.path):
                 try:
-                    c.drawImage(school.head_teacher_signature.path, el_x_pt, el_y_pt, width=el_w_pt, height=el_h_pt, preserveAspectRatio=True, anchor='c', mask='auto')
+                    c.drawImage(sig.path, el_x_pt, el_y_pt, width=el_w_pt, height=el_h_pt, preserveAspectRatio=True, anchor='c', mask='auto')
                 except Exception:
                     pass
 
         elif el.element_type == 'QR_CODE':
-            if id_card:
-                try:
+            try:
+                if id_card:
                     verify_url = get_card_verification_url(id_card, request)
-                    qr_level = getattr(el, 'qr_error_correction', 'M')
-                    qr_pil = generate_qr_image(verify_url, error_level=qr_level)
-                    qr_reader = ImageReader(qr_pil)
-                    c.drawImage(qr_reader, el_x_pt, el_y_pt, width=el_w_pt, height=el_h_pt, preserveAspectRatio=True)
-                except Exception:
-                    pass
+                else:
+                    verify_url = f"STUDENT:{student.student_id}:{student.full_name}"
+                qr_level = getattr(el, 'qr_error_correction', 'M')
+                qr_pil = generate_qr_image(verify_url, error_level=qr_level)
+                qr_reader = ImageReader(qr_pil)
+                c.drawImage(qr_reader, el_x_pt, el_y_pt, width=el_w_pt, height=el_h_pt, preserveAspectRatio=True)
+            except Exception:
+                pass
 
         c.restoreState()
 
@@ -317,16 +477,19 @@ def generate_id_cards_pdf(students, template, layout, academic_year, user=None, 
 
     # Create/update IDCard records for all eligible students to retain permanent card history
     id_cards = []
-    from apps.idcards.models import IDCard
+    from apps.idcards.models import IDCard, PrintLayout
+    year_str = academic_year.name.replace('/', '-') if academic_year else 'GEN'
+    valid_from = academic_year.start_date if (academic_year and academic_year.start_date) else date.today()
+    valid_until = academic_year.end_date if (academic_year and academic_year.end_date) else date.today().replace(year=date.today().year + 1)
     for s in eligible_students:
         card, created = IDCard.objects.get_or_create(
             student=s,
             academic_year=academic_year,
             defaults={
                 'template': template,
-                'card_number': f"ID-{academic_year.name.replace('/', '-')}-{s.student_id}",
-                'valid_from': academic_year.start_date,
-                'valid_until': academic_year.end_date,
+                'card_number': f"ID-{year_str}-{s.student_id}",
+                'valid_from': valid_from,
+                'valid_until': valid_until,
                 'card_status': 'GENERATED',
                 'validity_status': 'ACTIVE',
                 'generated_by': user if user and user.is_authenticated else None
@@ -339,6 +502,9 @@ def generate_id_cards_pdf(students, template, layout, academic_year, user=None, 
 
     if not id_cards:
         raise ValueError("All selected cards have been REVOKED and cannot be printed.")
+
+    if not layout:
+        layout = PrintLayout.get_default()
 
     # Sheet calculations
     sheet_w_mm, sheet_h_mm = layout.get_sheet_dimensions_mm()
@@ -617,14 +783,14 @@ def export_id_cards_batch(students, template, layout=None, academic_year=None, f
     if enforce_verified_only:
         eligible = [s for s in students if s.is_print_eligible]
     else:
-        eligible = list(students)
+        eligible = [s for s in students if getattr(s, 'status', 'ACTIVE') == 'ACTIVE'] or list(students)
 
     if not eligible:
-        raise ValueError("No eligible students found for export. Students must be Active and have a photo attached.")
+        raise ValueError("No eligible students found for export. Please ensure students are Active and have a photo attached, or enable 'Include pending verification'.")
 
     if not academic_year:
-        from apps.students.models import AcademicYear
-        academic_year = AcademicYear.objects.filter(is_active=True).first()
+        from apps.academic.models import AcademicYear
+        academic_year = AcademicYear.objects.filter(is_active=True).first() or AcademicYear.objects.first()
 
     # 1. Single student export
     if len(eligible) == 1:
@@ -651,7 +817,7 @@ def export_id_cards_batch(students, template, layout=None, academic_year=None, f
     if format_type == 'PDF':
         if not layout or layout == 'single':
             from apps.idcards.models import PrintLayout
-            layout = PrintLayout.objects.first()
+            layout = PrintLayout.get_default()
         pdf_bytes = generate_id_cards_pdf(
             students=eligible,
             template=template,

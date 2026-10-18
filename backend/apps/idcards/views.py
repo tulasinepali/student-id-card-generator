@@ -226,7 +226,9 @@ def template_preview_students_view(request, pk):
     students = Student.objects.select_related('class_level', 'section', 'academic_year').filter(status='ACTIVE')
     if org:
         students = students.filter(organization=org)
-    elif not request.user.is_superuser:
+    elif request.user.role in ('ADMIN', 'SUPER_ADMIN') or request.user.is_superuser:
+        students = students.filter(organization__isnull=True)
+    else:
         students = students.none()
 
     school = (org.school if org and org.school else School.get_instance())
@@ -493,7 +495,9 @@ def template_designer_view(request, pk):
     students_for_preview = Student.objects.select_related('class_level', 'section').filter(status='ACTIVE')
     if org:
         students_for_preview = students_for_preview.filter(organization=org)
-    elif not request.user.is_superuser:
+    elif request.user.role in ('ADMIN', 'SUPER_ADMIN') or request.user.is_superuser:
+        students_for_preview = students_for_preview.filter(organization__isnull=True)
+    else:
         students_for_preview = students_for_preview.none()
     students_for_preview = students_for_preview[:20]
 
@@ -538,41 +542,74 @@ def print_center_view(request):
     print_mode = request.POST.get('print_mode', 'all')
     selected_student_ids = request.POST.getlist('selected_students')
 
-    selected_class = ClassLevel.objects.filter(class_filter, id=class_id).first() if class_id else classes.first()
-    if section_id == 'all' or section_id == '':
+    student_base = Student.objects.all()
+    if org:
+        student_base = student_base.filter(organization=org)
+    elif request.user.role in ('ADMIN', 'SUPER_ADMIN') or request.user.is_superuser:
+        student_base = student_base.filter(organization__isnull=True)
+    else:
+        student_base = student_base.none()
+
+    selected_class = None
+    if class_id and str(class_id).isdigit():
+        selected_class = ClassLevel.objects.filter(class_filter, id=class_id).first()
+
+    if not selected_class:
+        # Default to the first class that actually has students in this scope, or the first available class
+        class_with_students = classes.filter(id__in=student_base.values_list('class_level_id', flat=True)).first()
+        selected_class = class_with_students or classes.first()
+
+    if section_id == 'all' or section_id == '' or not section_id:
         selected_section = None
-    elif section_id:
+    else:
         selected_section = Section.objects.filter(id=section_id).first()
         # Verify selected_section belongs to selected_class
         if selected_section and selected_class and selected_section.class_level != selected_class:
             selected_section = None
-    else:
-        selected_section = None
 
-    selected_year = AcademicYear.objects.filter(class_filter, id=year_id).first() if year_id else AcademicYear.objects.filter(class_filter, is_active=True).first()
+    selected_year = None
+    if year_id and str(year_id).isdigit():
+        selected_year = AcademicYear.objects.filter(class_filter, id=year_id).first()
+    if not selected_year:
+        selected_year = (
+            AcademicYear.objects.filter(class_filter, is_active=True).first() or
+            AcademicYear.objects.filter(class_filter).first() or
+            AcademicYear.objects.filter(is_active=True).first() or
+            AcademicYear.objects.first()
+        )
+
     selected_template = IDCardTemplate.objects.filter(class_filter, id=template_id, is_active=True).first() if template_id else (templates.filter(is_default=True).first() or templates.first())
+    if not selected_template:
+        selected_template = IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
+
     selected_layout = PrintLayout.objects.filter(id=layout_id).first() if layout_id else layouts.first()
+    if not selected_layout:
+        selected_layout = PrintLayout.get_default()
 
     # Query students in selected scope
     students_in_scope = Student.objects.none()
-    if selected_class and selected_year:
-        student_base = Student.objects.all()
-        if org:
-            student_base = student_base.filter(organization=org)
-        elif not request.user.is_superuser:
-            student_base = student_base.none()
-
+    if selected_class:
         if selected_section:
             students_in_scope = student_base.filter(
                 class_level=selected_class,
                 section=selected_section,
-                academic_year=selected_year
-            ).order_by('roll_number')
+            )
         else:
             students_in_scope = student_base.filter(
                 class_level=selected_class,
-                academic_year=selected_year
-            ).order_by('section__name', 'roll_number')
+            )
+
+        if selected_year:
+            # If any students in this class match selected_year, filter by it;
+            # otherwise include all students in the class so they are not hidden due to unassigned academic year
+            year_scoped = students_in_scope.filter(academic_year=selected_year)
+            if year_scoped.exists():
+                students_in_scope = year_scoped
+
+        if selected_section:
+            students_in_scope = students_in_scope.order_by('roll_number')
+        else:
+            students_in_scope = students_in_scope.order_by('section__name', 'roll_number')
 
     # Studio multi-client scope
     if org and getattr(org, 'is_studio', False):
@@ -623,12 +660,10 @@ def print_center_view(request):
             scope_name = f"{class_name}_{sec_name}_{year_name}"
 
             if not selected_template:
-                messages.error(request, "Please select an ID Card Template.")
-                return redirect(request.get_full_path())
+                selected_template = IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
 
             if not selected_layout:
-                messages.error(request, "Please select a Print Layout sheet.")
-                return redirect(request.get_full_path())
+                selected_layout = PrintLayout.get_default()
 
             # Export ZIP batch of single images / PDFs
             if request.POST.get('action') == 'export_cards':

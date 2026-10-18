@@ -767,32 +767,67 @@
     }
 
     function resolveDynamicField(el) {
-        if (el.element_type === 'TEXT') {
+        if (el.element_type === 'TEXT' && !((el.label_text || '').includes('{'))) {
             return el.label_text || 'Text';
         }
-        const key = (el.dynamic_field_key || el.label_text || '').toLowerCase();
-        if (!activeStudentData) {
-            if (key.includes('student.name')) return "Ram Sharma";
-            if (key.includes('student.student_id')) return "STU-001";
-            if (key.includes('student.roll_no')) return "01";
-            if (key.includes('student.class')) return "Grade 10 - A";
-            if (key.includes('school.name')) return "{{ school.name|default:'Greenwood Academy' }}";
-            if (key.includes('valid_until')) return "31 Dec 2026";
-            return el.label_text || el.dynamic_field_key || "Dynamic Field";
+        const sourceStr = el.dynamic_field_key || el.label_text || '';
+        const data = activeStudentData || {
+            full_name: 'Ram Sharma',
+            student_id: 'STU-001',
+            roll_number: '01',
+            class_name: 'Grade 10',
+            section_name: 'A',
+            dob: '2008-04-15',
+            gender: 'Male',
+            blood_group: 'B+',
+            guardian_name: 'Hari Sharma',
+            guardian_phone: '+977-9800000000',
+            address: 'Kathmandu, Nepal'
+        };
+
+        const ctx = {
+            'student.name': data.full_name,
+            'student.full_name': data.full_name,
+            'student.student_id': data.student_id,
+            'student.id': data.student_id,
+            'student.roll_no': String(data.roll_number),
+            'student.roll': String(data.roll_number),
+            'student.class': data.class_name,
+            'student.section': data.section_name,
+            'student.class_section': `${data.class_name} - ${data.section_name}`,
+            'student.dob': data.dob || '2008-01-01',
+            'student.gender': data.gender || 'Male',
+            'student.blood_group': data.blood_group || 'O+',
+            'student.guardian_name': data.guardian_name || 'Guardian',
+            'student.guardian_phone': data.guardian_phone || '+977-9800000000',
+            'student.address': data.address || 'Kathmandu, Nepal',
+            'school.name': "{{ school.name|default:'Apex Academy'|escapejs }}",
+            'school.head_teacher_name': "{{ school.head_teacher_name|default:'Principal'|escapejs }}",
+            'valid_until': '31 Dec 2026',
+            'valid_from': '01 Jan 2026'
+        };
+
+        if (sourceStr.includes('{') || sourceStr.includes('}')) {
+            const pattern = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}|\{\s*([a-zA-Z0-9_.]+)\s*\}/g;
+            if (pattern.test(sourceStr)) {
+                return sourceStr.replace(pattern, (match, p1, p2) => {
+                    const k = (p1 || p2 || '').trim().toLowerCase();
+                    return ctx[k] !== undefined ? ctx[k] : '';
+                });
+            }
         }
 
-        if (key.includes('student.name')) return activeStudentData.full_name;
-        if (key.includes('student.student_id')) return activeStudentData.student_id;
-        if (key.includes('student.roll_no')) return String(activeStudentData.roll_number);
-        if (key.includes('student.class')) return `${activeStudentData.class_name} - ${activeStudentData.section_name}`;
-        if (key.includes('student.dob')) return activeStudentData.dob || '2008-01-01';
-        if (key.includes('student.gender')) return activeStudentData.gender || 'Male';
-        if (key.includes('student.blood_group')) return activeStudentData.blood_group || 'O+';
-        if (key.includes('student.guardian_name')) return activeStudentData.guardian_name || 'Guardian';
-        if (key.includes('student.guardian_phone')) return activeStudentData.guardian_phone || '555-0100';
-        if (key.includes('student.address')) return activeStudentData.address || 'Kathmandu, Nepal';
-        if (key.includes('school.name')) return "{{ school.name|default:'Greenwood Academy' }}";
-        if (key.includes('valid_until')) return "31 Dec 2026";
+        const k = sourceStr.replace(/[{}]/g, '').trim().toLowerCase();
+        if (ctx[k] !== undefined) return ctx[k];
+        if (k.includes('student.name')) return ctx['student.name'];
+        if (k.includes('student.student_id')) return ctx['student.student_id'];
+        if (k.includes('student.roll')) return ctx['student.roll_no'];
+        if (k.includes('student.class') && k.includes('student.section')) return ctx['student.class_section'];
+        if (k.includes('student.class')) return ctx['student.class'];
+        if (k.includes('student.section')) return ctx['student.section'];
+        if (k.includes('school.name')) return ctx['school.name'];
+        if (k.includes('valid_until')) return ctx['valid_until'];
+
         return el.label_text || el.dynamic_field_key || "Data";
     }
 
@@ -958,6 +993,9 @@
         const el = elements.find(item => item.id === selectedElementId);
         if (!el) return;
         el[key] = value;
+        if (key === 'label_text' && el.element_type === 'DYNAMIC_FIELD' && (value.includes('{') || value.includes('}'))) {
+            el.dynamic_field_key = value;
+        }
         renderCanvas();
         renderLayers();
     }

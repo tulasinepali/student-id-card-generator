@@ -361,5 +361,26 @@ class PrintLayout(models.Model):
         cards_per_page = cols * rows
         return cols, rows, cards_per_page
 
+    @classmethod
+    def get_default(cls):
+        """Returns the first PrintLayout, or creates and returns a standard A4 layout if none exist."""
+        layout = cls.objects.first()
+        if not layout:
+            layout = cls.objects.create(
+                name="Standard A4 Layout",
+                paper_size='A4',
+                orientation='PORTRAIT',
+                margin_top_mm=10.0,
+                margin_bottom_mm=10.0,
+                margin_left_mm=10.0,
+                margin_right_mm=10.0,
+                gap_x_mm=4.0,
+                gap_y_mm=4.0,
+                cols=3,
+                rows=5,
+                show_crop_marks=True
+            )
+        return layout
+
     def __str__(self):
         return f"{self.name} [{self.get_paper_size_display()}: {self.cols}x{self.rows}]"

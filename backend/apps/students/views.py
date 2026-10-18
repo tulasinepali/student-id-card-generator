@@ -158,8 +158,8 @@ def students_list_view(request):
             include_unverified = request.POST.get('include_unverified') in ['true', 'True', '1', 'on']
 
             template = IDCardTemplate.objects.filter(id=template_id, is_active=True).first() or IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
-            layout = PrintLayout.objects.filter(id=layout_id).first() or PrintLayout.objects.first()
-            academic_year = AcademicYear.objects.filter(is_active=True).first()
+            layout = PrintLayout.objects.filter(id=layout_id).first() or PrintLayout.get_default()
+            academic_year = AcademicYear.objects.filter(is_active=True).first() or AcademicYear.objects.first()
 
             try:
                 content, content_type, filename = export_id_cards_batch(
@@ -211,7 +211,7 @@ def students_list_view(request):
                 return redirect(request.get_full_path())
 
             template = IDCardTemplate.objects.filter(id=template_id, is_active=True).first() or IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
-            layout = PrintLayout.objects.filter(id=layout_id).first() or PrintLayout.objects.first()
+            layout = PrintLayout.objects.filter(id=layout_id).first() or PrintLayout.get_default()
 
             sec_str = f"_{target_section.name}" if target_section else "_All_Sections"
             class_str = target_class.name.replace(' ', '_') if target_class else "All_Classes"
@@ -250,7 +250,7 @@ def students_list_view(request):
 
             template = IDCardTemplate.objects.filter(id=template_id, is_active=True).first() or IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
             layout = PrintLayout.objects.filter(id=layout_id).first() if layout_id else 'single'
-            academic_year = student.academic_year or AcademicYear.objects.filter(is_active=True).first()
+            academic_year = student.academic_year or AcademicYear.objects.filter(is_active=True).first() or AcademicYear.objects.first()
 
             try:
                 content, content_type, filename = export_id_cards_batch(
@@ -324,7 +324,7 @@ def student_detail_view(request, pk):
 
         template = IDCardTemplate.objects.filter(id=template_id, is_active=True).first() or IDCardTemplate.objects.filter(is_default=True).first() or IDCardTemplate.objects.first()
         layout = PrintLayout.objects.filter(id=layout_id).first() if (layout_choice == 'sheet' and layout_id) else 'single'
-        academic_year = student.academic_year or AcademicYear.objects.filter(is_active=True).first()
+        academic_year = student.academic_year or AcademicYear.objects.filter(is_active=True).first() or AcademicYear.objects.first()
 
         try:
             content, content_type, filename = export_id_cards_batch(

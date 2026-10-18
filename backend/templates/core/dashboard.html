@@ -201,7 +201,7 @@
                                 <span class="badge bg-light text-dark border">{{ row.cards }}</span>
                             </td>
                             <td class="text-end">
-                                <a href="{% url 'print_center' %}?class={{ row.class_id }}" class="btn btn-sm btn-outline-primary" title="Print cards for class">
+                                <a href="{% url 'print_center' %}?class={{ row.class_id }}&section={{ row.section_id }}" class="btn btn-sm btn-outline-primary" title="Print cards for class">
                                     <i class="bi bi-printer"></i>
                                 </a>
                             </td>

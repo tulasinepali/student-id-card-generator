@@ -230,7 +230,7 @@ class IDCardEngineTestCase(TestCase):
         )
 
         from django.contrib.auth import get_user_model
-        admin_user = get_user_model().objects.create_superuser(
+        admin_user = get_user_model().objects.create_user(
             username="test_admin_printer",
             password="adminpassword123",
             role="ADMIN"
@@ -288,7 +288,7 @@ class IDCardEngineTestCase(TestCase):
 
     def test_student_directory_print_class_post(self):
         from django.contrib.auth import get_user_model
-        admin_user = get_user_model().objects.create_superuser(
+        admin_user = get_user_model().objects.create_user(
             username="test_admin_dir", password="adminpassword123", role="ADMIN"
         )
         self.client.force_login(admin_user)
@@ -310,7 +310,7 @@ class IDCardEngineTestCase(TestCase):
 
     def test_student_directory_print_selected_png_zip(self):
         from django.contrib.auth import get_user_model
-        admin_user = get_user_model().objects.create_superuser(
+        admin_user = get_user_model().objects.create_user(
             username="test_admin_dir2", password="adminpassword123", role="ADMIN"
         )
         self.client.force_login(admin_user)
@@ -329,7 +329,7 @@ class IDCardEngineTestCase(TestCase):
 
     def test_student_detail_print_card_export(self):
         from django.contrib.auth import get_user_model
-        admin_user = get_user_model().objects.create_superuser(
+        admin_user = get_user_model().objects.create_user(
             username="test_admin_det", password="adminpassword123", role="ADMIN"
         )
         self.client.force_login(admin_user)

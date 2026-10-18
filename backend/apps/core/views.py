@@ -200,6 +200,8 @@ def dashboard_view(request):
                 sec_photos = sec_students.exclude(Q(photo='') | Q(photo__isnull=True)).count()
                 sec_cards = cards_qs.filter(student__in=sec_students).count()
                 class_summaries.append({
+                    'class_id': c.id,
+                    'section_id': s.id,
                     'class_name': c.name,
                     'section_name': s.name,
                     'total': sec_total,
